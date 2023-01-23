@@ -51,6 +51,10 @@ class MainActivity : AppCompatActivity()
         return when (item.itemId)
         {
             R.id.action_settings -> true
+            R.id.action_scan -> {
+
+                true
+            }
             else -> super.onOptionsItemSelected(item)
         }
     }
