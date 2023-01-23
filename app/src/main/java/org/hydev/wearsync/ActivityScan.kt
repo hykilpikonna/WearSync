@@ -102,7 +102,7 @@ class ActivityScan : AppCompatActivity() {
             // Add to scanned devices
             scannedDevices.add(peripheral)
             Handler(Looper.getMainLooper()).post {
-                binding.lvScanned.adapter = ArrayAdapter(applicationContext, android.R.layout.simple_list_item_1,
+                binding.lvScanned.adapter = ArrayAdapter(this, android.R.layout.simple_list_item_1,
                     scannedDevices.map {
                         "${it.name + if (it.address in pairedAddresses) " (Paired)" else ""}\n" +
                                 "MAC Address: ${it.address}"
@@ -117,7 +117,7 @@ class ActivityScan : AppCompatActivity() {
         }
 
         // Format and show bounded device list
-        binding.lvPaired.adapter = ArrayAdapter(applicationContext, android.R.layout.simple_list_item_1,
+        binding.lvPaired.adapter = ArrayAdapter(this, android.R.layout.simple_list_item_1,
             pairedDevices.map { "Name: ${it.name}\nMAC Address: ${it.address}" })
 
         // On click handler
