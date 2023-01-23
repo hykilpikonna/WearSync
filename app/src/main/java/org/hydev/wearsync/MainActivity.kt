@@ -8,7 +8,6 @@ import android.view.Menu
 import android.view.MenuItem
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.appcompat.app.AppCompatActivity
-import com.google.android.material.snackbar.Snackbar
 import kotlinx.coroutines.*
 import kotlinx.coroutines.flow.consumeAsFlow
 import org.hydev.wearsync.ActivityPermissions.Companion.hasPermissions
@@ -46,15 +45,7 @@ class MainActivity : AppCompatActivity()
 
         binding = ActivityMainBinding.inflate(layoutInflater)
         setContentView(binding.root)
-
         setSupportActionBar(binding.toolbar)
-
-        binding.fab.setOnClickListener { view ->
-            Snackbar.make(view, "owo", Snackbar.LENGTH_LONG)
-                    .setAction("Action", null).show()
-
-            println("owo")
-        }
 
         if (!hasPermissions()) act<ActivityPermissions>()
 
