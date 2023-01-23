@@ -46,9 +46,7 @@ class ActivityScan : AppCompatActivity() {
             }
         }
 
-    private val bluetoothManager by lazy {
-        applicationContext.getSystemService(BLUETOOTH_SERVICE) as BluetoothManager
-    }
+    private val bluetoothManager by lazy { getSystemService(BLUETOOTH_SERVICE) as BluetoothManager }
 
     private lateinit var bluetoothHandler: BluetoothHandler
 
@@ -86,7 +84,7 @@ class ActivityScan : AppCompatActivity() {
     @SuppressLint("MissingPermission")
     private fun initBluetoothHandler() {
         if (this::bluetoothHandler.isInitialized) return
-        bluetoothHandler = BluetoothHandler.getInstance(applicationContext)
+        bluetoothHandler = BluetoothHandler.ble(this)
 
         println("OnCreate called, Initializing...")
 
@@ -248,7 +246,7 @@ class ActivityScan : AppCompatActivity() {
     private fun getMissingPermissions(requiredPermissions: Array<String>): Array<String> {
         val missingPermissions: MutableList<String> = ArrayList()
         for (requiredPermission in requiredPermissions) {
-            if (applicationContext.checkSelfPermission(requiredPermission) != PackageManager.PERMISSION_GRANTED) {
+            if (checkSelfPermission(requiredPermission) != PackageManager.PERMISSION_GRANTED) {
                 missingPermissions.add(requiredPermission)
             }
         }
@@ -278,8 +276,7 @@ class ActivityScan : AppCompatActivity() {
     }
 
     private fun areLocationServicesEnabled(): Boolean {
-        val locationManager =
-            applicationContext.getSystemService(LOCATION_SERVICE) as LocationManager
+        val locationManager = getSystemService(LOCATION_SERVICE) as LocationManager
         return if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) {
             locationManager.isLocationEnabled
         } else {

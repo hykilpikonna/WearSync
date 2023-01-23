@@ -1,6 +1,5 @@
 package org.hydev.wearsync.bles
 
-import android.bluetooth.BluetoothAdapter
 import android.content.Context
 import com.welie.blessed.*
 import kotlinx.coroutines.*
@@ -278,14 +277,12 @@ internal class BluetoothHandler private constructor(context: Context) {
         private val CONTOUR_CLOCK = UUID.fromString("00001026-0002-11E2-9E96-0800200C9A66")
         private var instance: BluetoothHandler? = null
 
-        @JvmStatic
         @Synchronized
-        fun getInstance(context: Context): BluetoothHandler
-        {
+        fun ble(context: Context): BluetoothHandler {
             if (instance == null) {
                 instance = BluetoothHandler(context.applicationContext)
             }
-            return requireNotNull(instance)
+            return instance!!
         }
     }
 
