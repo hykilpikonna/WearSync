@@ -9,7 +9,7 @@ android {
 
     defaultConfig {
         applicationId "org.hydev.wearsync"
-        minSdk 24
+        minSdk 26
         targetSdk 33
         versionCode 1
         versionName "1.0"
@@ -43,8 +43,11 @@ dependencies {
     implementation 'androidx.navigation:navigation-fragment-ktx:2.5.3'
     implementation 'androidx.navigation:navigation-ui-ktx:2.5.3'
 
+    // Logger
+    implementation 'com.jakewharton.timber:timber:5.0.1'
+
     // BLE Library
-    implementation 'no.nordicsemi.android:ble-ktx:2.6.0'
+    implementation "com.github.weliem:blessed-android-coroutines:0.3.2"
 
     testImplementation 'junit:junit:4.13.2'
     androidTestImplementation 'androidx.test.ext:junit:1.1.5'
