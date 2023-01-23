@@ -49,8 +49,6 @@ class MainActivity : AppCompatActivity()
 
         setSupportActionBar(binding.toolbar)
 
-        binding.content.tvDevice.text = "Configured Device: $chosenDevice"
-
         binding.fab.setOnClickListener { view ->
             Snackbar.make(view, "owo", Snackbar.LENGTH_LONG)
                     .setAction("Action", null).show()
@@ -59,7 +57,12 @@ class MainActivity : AppCompatActivity()
         }
 
         if (!hasPermissions()) act<ActivityPermissions>()
-        if (chosenDevice == null) act<ActivityScan>()
+
+        // Scan for devices
+        act<ActivityScan>()
+        binding.content.tvDevice.text = "Configured Device: $chosenDevice"
+
+        startCollect()
     }
 
     override fun onResume()
@@ -77,13 +80,11 @@ class MainActivity : AppCompatActivity()
 
     override fun onOptionsItemSelected(item: MenuItem): Boolean
     {
-        // Handle action bar item clicks here. The action bar will
-        // automatically handle clicks on the Home/Up button, so long
-        // as you specify a parent activity in AndroidManifest.xml.
         return when (item.itemId)
         {
             R.id.action_settings -> true
-            R.id.action_scan -> { act<ActivityScan>()
+            R.id.action_scan -> {
+                act<ActivityScan>()
                 true
             }
             else -> super.onOptionsItemSelected(item)
