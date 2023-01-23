@@ -2,6 +2,7 @@ package org.hydev.wearsync
 
 import android.annotation.SuppressLint
 import android.content.Context
+import android.content.Intent
 import android.os.Bundle
 import android.view.Menu
 import android.view.MenuItem
@@ -40,6 +41,7 @@ class MainActivity : AppCompatActivity()
     {
         // Inflate the menu; this adds items to the action bar if it is present.
         menuInflater.inflate(R.menu.menu_main, menu)
+
         return true
     }
 
@@ -52,7 +54,7 @@ class MainActivity : AppCompatActivity()
         {
             R.id.action_settings -> true
             R.id.action_scan -> {
-
+                startActivity(Intent(this, ActivityScan::class.java))
                 true
             }
             else -> super.onOptionsItemSelected(item)

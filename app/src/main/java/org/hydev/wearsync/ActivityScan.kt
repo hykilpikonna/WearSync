@@ -1,4 +1,4 @@
-package com.welie.blessedexample
+package org.hydev.wearsync
 
 import android.Manifest
 import android.annotation.SuppressLint
@@ -25,7 +25,6 @@ import kotlinx.coroutines.flow.consumeAsFlow
 import org.hydev.wearsync.bles.BluetoothHandler
 import org.hydev.wearsync.bles.ObservationUnit
 import org.hydev.wearsync.databinding.ActivityScanBinding
-import org.hydev.wearsync.snack
 import timber.log.Timber
 import java.text.DateFormat
 import java.text.SimpleDateFormat
