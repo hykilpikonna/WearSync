@@ -10,6 +10,7 @@ import com.welie.blessed.BluetoothPeripheral
 import kotlinx.coroutines.*
 import kotlinx.coroutines.flow.consumeAsFlow
 import org.hydev.wearsync.bles.BluetoothHandler
+import org.hydev.wearsync.bles.BluetoothHandler.Companion.ble
 import org.hydev.wearsync.bles.ObservationUnit
 import org.hydev.wearsync.databinding.ActivityScanBinding
 import java.text.DateFormat
@@ -22,9 +23,6 @@ class ActivityScan : AppCompatActivity() {
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
     private val dateFormat: DateFormat = SimpleDateFormat("dd-MM-yyyy HH:mm:ss", Locale.ENGLISH)
 
-    private val blueMan by lazy { blueMan() }
-    private lateinit var bluetoothHandler: BluetoothHandler
-
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         binding = ActivityScanBinding.inflate(layoutInflater)
@@ -33,22 +31,17 @@ class ActivityScan : AppCompatActivity() {
         initBluetoothHandler()
     }
 
-    private val central get() = bluetoothHandler.central
-
     @SuppressLint("MissingPermission")
     private fun initBluetoothHandler() {
-        if (this::bluetoothHandler.isInitialized) return
-        bluetoothHandler = BluetoothHandler.ble(this)
-
         println("OnCreate called, Initializing...")
 
         // List bonded device addresses
-        val pairedDevices = blueMan.adapter.bondedDevices.toList()
+        val pairedDevices = blueMan().adapter.bondedDevices.toList()
         val pairedAddresses = pairedDevices.map { it.address }.toSet()
 
         // Scan devices
         val scannedDevices = ArrayList<BluetoothPeripheral>()
-        central.scanForPeripherals({ peripheral, scanResult ->
+        ble.central.scanForPeripherals({ peripheral, scanResult ->
             if (peripheral.name.isBlank() || scannedDevices.contains(peripheral)) return@scanForPeripherals
 
             // Add to scanned devices
@@ -64,8 +57,8 @@ class ActivityScan : AppCompatActivity() {
 
         // Click scanned device
         binding.lvScanned.setOnItemClickListener { parent, view, position, id ->
-            central.stopScan()
-            bluetoothHandler.connectPeripheral(scannedDevices[position]) {
+            ble.central.stopScan()
+            ble.connectPeripheral(scannedDevices[position]) {
                 view.snack("✅ Connected.")
             }
         }
@@ -83,16 +76,16 @@ class ActivityScan : AppCompatActivity() {
             view.snack("Connecting...")
 
             // Scan for the device with the MAC address
-            bluetoothHandler.connectAddress(dev.address) {
+            ble.connectAddress(dev.address) {
                 view.snack("✅ Connected.")
             }
         }
 
-        collectHeartRate(bluetoothHandler)
-        collectPulseOxContinuous(bluetoothHandler)
-        collectPulseOxSpot(bluetoothHandler)
-        collectTemperature(bluetoothHandler)
-        collectWeight(bluetoothHandler)
+        collectHeartRate(ble)
+        collectPulseOxContinuous(ble)
+        collectPulseOxSpot(ble)
+        collectTemperature(ble)
+        collectWeight(ble)
     }
 
     private fun collectHeartRate(bluetoothHandler: BluetoothHandler) {
