@@ -1,32 +1,40 @@
-package org.hydev.wearsync.bles
+package com.welie.blessedexample
 
 import android.Manifest
+import android.annotation.SuppressLint
 import android.app.AlertDialog
 import android.bluetooth.BluetoothAdapter
 import android.bluetooth.BluetoothManager
-import android.content.*
+import android.content.BroadcastReceiver
+import android.content.Context
+import android.content.Intent
+import android.content.IntentFilter
 import android.content.pm.PackageManager
 import android.location.LocationManager
 import android.os.Build
 import android.os.Bundle
+import android.os.Handler
+import android.os.Looper
 import android.provider.Settings
-import android.view.View
-import android.widget.TextView
+import android.widget.ArrayAdapter
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.appcompat.app.AppCompatActivity
 import com.welie.blessed.BluetoothPeripheral
-import org.hydev.wearsync.bles.BluetoothHandler.Companion.getInstance
 import kotlinx.coroutines.*
 import kotlinx.coroutines.flow.consumeAsFlow
-import org.hydev.wearsync.R
+import org.hydev.wearsync.bles.BluetoothHandler
+import org.hydev.wearsync.bles.ObservationUnit
+import org.hydev.wearsync.databinding.ActivityScanBinding
+import org.hydev.wearsync.snack
 import timber.log.Timber
 import java.text.DateFormat
 import java.text.SimpleDateFormat
 import java.util.*
 
-class MainActivity : AppCompatActivity() {
+class ActivityScan : AppCompatActivity() {
+    lateinit var binding: ActivityScanBinding
+
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
-    private var measurementValue: TextView? = null
     private val dateFormat: DateFormat = SimpleDateFormat("dd-MM-yyyy HH:mm:ss", Locale.ENGLISH)
     private val enableBluetoothRequest =
         registerForActivityResult(ActivityResultContracts.StartActivityForResult()) {
@@ -40,10 +48,10 @@ class MainActivity : AppCompatActivity() {
         }
 
     private val bluetoothManager by lazy {
-        applicationContext
-            .getSystemService(BLUETOOTH_SERVICE)
-                as BluetoothManager
+        applicationContext.getSystemService(BLUETOOTH_SERVICE) as BluetoothManager
     }
+
+    private lateinit var bluetoothHandler: BluetoothHandler
 
 
     private fun askToEnableBluetooth() {
@@ -51,10 +59,11 @@ class MainActivity : AppCompatActivity() {
         enableBluetoothRequest.launch(enableBtIntent)
     }
 
+    @SuppressLint("MissingPermission")
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        setContentView(R.layout.activity_main)
-        measurementValue = findViewById<View>(R.id.bloodPressureValue) as TextView
+        binding = ActivityScanBinding.inflate(layoutInflater)
+        setContentView(binding.root)
         registerReceiver(
             locationServiceStateReceiver,
             IntentFilter(LocationManager.MODE_CHANGED_ACTION)
@@ -64,74 +73,86 @@ class MainActivity : AppCompatActivity() {
     override fun onResume() {
         super.onResume()
         if (bluetoothManager.adapter != null) {
-            if (!isBluetoothEnabled) {
-                askToEnableBluetooth()
-            } else {
-                checkPermissions()
-            }
+            if (!isBluetoothEnabled) askToEnableBluetooth() else checkPermissions()
         } else {
             Timber.e("This device has no Bluetooth hardware")
         }
     }
 
     private val isBluetoothEnabled: Boolean
-        get() {
-            val bluetoothAdapter = bluetoothManager.adapter ?: return false
-            return bluetoothAdapter.isEnabled
+        get() = bluetoothManager.adapter?.isEnabled ?: false
+
+    private val central get() = bluetoothHandler.central
+
+    @SuppressLint("MissingPermission")
+    private fun initBluetoothHandler() {
+        if (this::bluetoothHandler.isInitialized) return
+        bluetoothHandler = BluetoothHandler.getInstance(applicationContext)
+
+        println("OnCreate called, Initializing...")
+
+        // List bonded device addresses
+        val pairedDevices = bluetoothManager.adapter.bondedDevices.toList()
+        val pairedAddresses = pairedDevices.map { it.address }.toSet()
+
+        // Scan devices
+        val scannedDevices = ArrayList<BluetoothPeripheral>()
+        central.scanForPeripherals({ peripheral, scanResult ->
+            if (peripheral.name.isBlank() || scannedDevices.contains(peripheral)) return@scanForPeripherals
+
+            // Add to scanned devices
+            scannedDevices.add(peripheral)
+            Handler(Looper.getMainLooper()).post {
+                binding.lvScanned.adapter = ArrayAdapter(applicationContext, android.R.layout.simple_list_item_1,
+                    scannedDevices.map {
+                        "${it.name + if (it.address in pairedAddresses) " (Paired)" else ""}\n" +
+                                "MAC Address: ${it.address}"
+                    })
+            }
+        }, {})
+
+        // Click scanned device
+        binding.lvScanned.setOnItemClickListener { parent, view, position, id ->
+            central.stopScan()
+            bluetoothHandler.connectPeripheral(scannedDevices[position])
         }
 
+        // Format and show bounded device list
+        binding.lvPaired.adapter = ArrayAdapter(applicationContext, android.R.layout.simple_list_item_1,
+            pairedDevices.map { "Name: ${it.name}\nMAC Address: ${it.address}" })
 
-    private fun initBluetoothHandler() {
-        val bluetoothHandler = getInstance(applicationContext)
+        // On click handler
+        binding.lvPaired.setOnItemClickListener { parent, view, position, id ->
+            // Extract MAC address
+            val dev = pairedDevices[position]
+            println("Clicked: ${dev.address}")
 
-        collectBloodPressure(bluetoothHandler)
+            view.snack("Connecting...")
+
+            // Scan for the device with the MAC address
+            central.stopScan()
+            central.scanForPeripheralsWithAddresses(arrayOf(dev.address), { peripheral, scanResult ->
+                if (peripheral.address != dev.address) return@scanForPeripheralsWithAddresses
+
+                view.snack("✅ Connected.")
+
+                central.stopScan()
+                bluetoothHandler.connectPeripheral(peripheral)
+            }, {})
+        }
+
         collectHeartRate(bluetoothHandler)
-        collectGlucose(bluetoothHandler)
         collectPulseOxContinuous(bluetoothHandler)
         collectPulseOxSpot(bluetoothHandler)
         collectTemperature(bluetoothHandler)
         collectWeight(bluetoothHandler)
     }
 
-    private fun collectBloodPressure(bluetoothHandler: BluetoothHandler) {
-        scope.launch {
-            bluetoothHandler.bloodpressureChannel.consumeAsFlow().collect {
-                withContext(Dispatchers.Main) {
-                    measurementValue!!.text = String.format(
-                        Locale.ENGLISH,
-                        "%.0f/%.0f %s, %.0f bpm\n%s\n",
-                        it.systolic,
-                        it.diastolic,
-                        if (it.unit == ObservationUnit.MMHG) "mmHg" else "kpa",
-                        it.pulseRate,
-                        dateFormat.format(it.timestamp ?: Calendar.getInstance())
-                    )
-                }
-            }
-        }
-    }
-
-    private fun collectGlucose(bluetoothHandler: BluetoothHandler) {
-        scope.launch {
-            bluetoothHandler.glucoseChannel.consumeAsFlow().collect {
-                withContext(Dispatchers.Main) {
-                    measurementValue!!.text = String.format(
-                        Locale.ENGLISH,
-                        "%.1f %s\n%s\n",
-                        it.value,
-                        if (it.unit === ObservationUnit.MmolPerLiter) "mmol/L" else "mg/dL",
-                        dateFormat.format(it.timestamp ?: Calendar.getInstance()),
-                    )
-                }
-            }
-        }
-    }
-
     private fun collectHeartRate(bluetoothHandler: BluetoothHandler) {
         scope.launch {
             bluetoothHandler.heartRateChannel.consumeAsFlow().collect {
                 withContext(Dispatchers.Main) {
-                    measurementValue?.text = String.format(Locale.ENGLISH, "%d bpm", it.pulse)
+                    binding.mainText.text = String.format(Locale.ENGLISH, "%d bpm", it.pulse)
                 }
             }
         }
@@ -141,7 +162,7 @@ class MainActivity : AppCompatActivity() {
         scope.launch {
             bluetoothHandler.pulseOxContinuousChannel.consumeAsFlow().collect {
                 withContext(Dispatchers.Main) {
-                    measurementValue!!.text = String.format(
+                    binding.mainText.text = String.format(
                         Locale.ENGLISH,
                         "SpO2 %d%%,  Pulse %d bpm\n%s\n\nfrom %s",
                         it.spO2,
@@ -157,7 +178,7 @@ class MainActivity : AppCompatActivity() {
         scope.launch {
             bluetoothHandler.pulseOxSpotChannel.consumeAsFlow().collect {
                 withContext(Dispatchers.Main) {
-                    measurementValue!!.text = String.format(
+                    binding.mainText.text = String.format(
                         Locale.ENGLISH,
                         "SpO2 %d%%,  Pulse %d bpm\n",
                         it.spO2,
@@ -172,7 +193,7 @@ class MainActivity : AppCompatActivity() {
         scope.launch {
             bluetoothHandler.temperatureChannel.consumeAsFlow().collect {
                 withContext(Dispatchers.Main) {
-                    measurementValue?.text = String.format(
+                    binding.mainText.text = String.format(
                         Locale.ENGLISH,
                         "%.1f %s (%s)\n%s\n",
                         it.temperatureValue,
@@ -189,7 +210,7 @@ class MainActivity : AppCompatActivity() {
         scope.launch {
             bluetoothHandler.weightChannel.consumeAsFlow().collect {
                 withContext(Dispatchers.Main) {
-                    measurementValue!!.text = String.format(
+                    binding.mainText.text = String.format(
                         Locale.ENGLISH,
                         "%.1f %s\n%s\n",
                         it.weight, it.unit.toString(),
@@ -217,8 +238,7 @@ class MainActivity : AppCompatActivity() {
     }
 
     private fun getPeripheral(peripheralAddress: String): BluetoothPeripheral {
-        val central = getInstance(applicationContext).central
-        return central.getPeripheral(peripheralAddress)
+        return bluetoothHandler.central.getPeripheral(peripheralAddress)
     }
 
     private fun checkPermissions() {
@@ -277,7 +297,7 @@ class MainActivity : AppCompatActivity() {
 
     private fun checkLocationServices(): Boolean {
         return if (!areLocationServicesEnabled()) {
-            AlertDialog.Builder(this@MainActivity)
+            AlertDialog.Builder(this)
                 .setTitle("Location services are not enabled")
                 .setMessage("Scanning for Bluetooth peripherals requires locations services to be enabled.") // Want to enable?
                 .setPositiveButton("Enable") { dialogInterface, _ ->
@@ -315,7 +335,7 @@ class MainActivity : AppCompatActivity() {
         if (allGranted) {
             checkIfLocationIsNeeded()
         } else {
-            AlertDialog.Builder(this@MainActivity)
+            AlertDialog.Builder(this)
                 .setTitle("Location permission is required for scanning Bluetooth peripherals")
                 .setMessage("Please grant permissions")
                 .setPositiveButton("Retry") { dialogInterface, _ ->

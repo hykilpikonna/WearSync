@@ -218,7 +218,7 @@ internal class BluetoothHandler private constructor(context: Context) {
             { scanFailure -> Timber.e("scan failed with reason $scanFailure") })
     }
 
-    private fun connectPeripheral(peripheral: BluetoothPeripheral) {
+    fun connectPeripheral(peripheral: BluetoothPeripheral) {
         peripheral.observeBondState {
             Timber.i("Bond state is $it")
         }
