@@ -5,6 +5,7 @@ import com.welie.blessed.*
 import kotlinx.coroutines.*
 import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.channels.Channel.Factory.UNLIMITED
+import org.hydev.wearsync.bles.decoders.*
 import timber.log.Timber
 import timber.log.Timber.DebugTree
 import java.nio.ByteOrder
@@ -13,6 +14,7 @@ import java.util.*
 internal class BluetoothHandler private constructor(context: Context) {
 
     private var currentTimeCounter = 0
+    val batteryChannel = Channel<UInt>(UNLIMITED)
     val heartRateChannel = Channel<HeartRateMeasurement>(UNLIMITED)
     val bloodPressureChannel = Channel<BloodPressureMeasurement>(UNLIMITED)
     val glucoseChannel = Channel<GlucoseMeasurement>(UNLIMITED)
@@ -24,24 +26,12 @@ internal class BluetoothHandler private constructor(context: Context) {
     private fun handlePeripheral(peripheral: BluetoothPeripheral) {
         scope.launch {
             try {
-                val mtu = peripheral.requestMtu(185)
-                Timber.i("MTU is $mtu")
-
+                Timber.i("MTU is ${peripheral.requestMtu(185)}")
                 peripheral.requestConnectionPriority(ConnectionPriority.HIGH)
-
-                val rssi = peripheral.readRemoteRssi()
-                Timber.i("RSSI is $rssi")
-
-                peripheral.getCharacteristic(DIS_SERVICE_UUID, MANUFACTURER_NAME_CHARACTERISTIC_UUID)?.let {
-                    val manufacturerName = peripheral.readCharacteristic(it).asString()
-                    Timber.i("Received: $manufacturerName")
-                }
-
-                val model = peripheral.readCharacteristic(DIS_SERVICE_UUID, MODEL_NUMBER_CHARACTERISTIC_UUID).asString()
-                Timber.i("Received: $model")
-
-                val batteryLevel = peripheral.readCharacteristic(BTS_SERVICE_UUID, BATTERY_LEVEL_CHARACTERISTIC_UUID).asUInt8()
-                Timber.i("Battery level: $batteryLevel")
+                Timber.i("RSSI is ${peripheral.readRemoteRssi()}")
+                Timber.i("Received: ${peripheral.read(ManufacturerDecoder())}")
+                Timber.i("Received: ${peripheral.read(ModelDecoder())}")
+                Timber.i("Battery level: ${peripheral.read(BatteryDecoder())}")
 
                 // Write Current Time if possible
                 peripheral.getCharacteristic(CTS_SERVICE_UUID, CURRENT_TIME_CHARACTERISTIC_UUID)?.let {
@@ -56,12 +46,14 @@ internal class BluetoothHandler private constructor(context: Context) {
                     }
                 }
 
-                setupHRSnotifications(peripheral)
-                setupPLXnotifications(peripheral)
-                setupHTSnotifications(peripheral)
+                peripheral.setupNotification(batteryChannel, BatteryDecoder())
+                peripheral.setupNotification(heartRateChannel, HeartRateDecoder())
+                peripheral.setupNotification(temperatureChannel, TemperatureDecoder())
+                peripheral.setupNotification(weightChannel, WeightDecoder())
+                peripheral.setupNotification(bloodPressureChannel, BloodPressureDecoder())
+                peripheral.setupNotification(pulseOxSpotChannel, PLXSpotDecoder())
+                peripheral.setupNotification(pulseOxContinuousChannel, PLXContinuousDecoder())
                 setupGLXnotifications(peripheral)
-                setupBLPnotifications(peripheral)
-                setupWSSnotifications(peripheral)
                 setupCTSnotifications(peripheral)
 
                 peripheral.getCharacteristic(CONTOUR_SERVICE_UUID, CONTOUR_CLOCK)?.let {
@@ -119,34 +111,8 @@ internal class BluetoothHandler private constructor(context: Context) {
         }
     }
 
-    private suspend fun setupHRSnotifications(peripheral: BluetoothPeripheral) {
-        peripheral.getCharacteristic(HRS_SERVICE_UUID, HRS_MEASUREMENT_CHARACTERISTIC_UUID)?.let {
-            peripheral.observe(it) { value ->
-                val measurement = HeartRateMeasurement.fromBytes(value)
-                heartRateChannel.trySend(measurement)
-                Timber.d("%s", measurement)
-            }
-        }
-    }
-
-    private suspend fun setupWSSnotifications(peripheral: BluetoothPeripheral) {
-        peripheral.getCharacteristic(WSS_SERVICE_UUID, WSS_MEASUREMENT_CHAR_UUID)?.let {
-            peripheral.observe(it) { value ->
-                val measurement = WeightMeasurement.fromBytes(value)
-                weightChannel.trySend(measurement)
-                Timber.d("%s", measurement)
-            }
-        }
-    }
-
     private suspend fun setupGLXnotifications(peripheral: BluetoothPeripheral) {
-        peripheral.getCharacteristic(GLUCOSE_SERVICE_UUID, GLUCOSE_MEASUREMENT_CHARACTERISTIC_UUID)?.let {
-            peripheral.observe(it) { value ->
-                val measurement = GlucoseMeasurement.fromBytes(value)
-                glucoseChannel.trySend(measurement)
-                Timber.d("%s", measurement)
-            }
-        }
+        peripheral.setupNotification(glucoseChannel, GlucoseDecoder())
 
         peripheral.getCharacteristic(GLUCOSE_SERVICE_UUID, GLUCOSE_RECORD_ACCESS_POINT_CHARACTERISTIC_UUID)?.let {
             val result = peripheral.observe(it) { value ->
@@ -166,42 +132,13 @@ internal class BluetoothHandler private constructor(context: Context) {
         peripheral.writeCharacteristic(GLUCOSE_SERVICE_UUID, GLUCOSE_RECORD_ACCESS_POINT_CHARACTERISTIC_UUID, command, WriteType.WITH_RESPONSE)
     }
 
-    private suspend fun setupBLPnotifications(peripheral: BluetoothPeripheral) {
-        peripheral.getCharacteristic(BLP_SERVICE_UUID, BLP_MEASUREMENT_CHARACTERISTIC_UUID)?.let {
-            peripheral.observe(it) { value ->
-                val measurement = BloodPressureMeasurement.fromBytes(value)
-                bloodPressureChannel.trySend(measurement)
-                Timber.d("%s", measurement)
-            }
-        }
-    }
-
-    private suspend fun setupHTSnotifications(peripheral: BluetoothPeripheral) {
-        peripheral.getCharacteristic(HTS_SERVICE_UUID, HTS_MEASUREMENT_CHARACTERISTIC_UUID)?.let {
-            peripheral.observe(it) { value ->
-                val measurement = TemperatureMeasurement.fromBytes(value)
-                temperatureChannel.trySend(measurement)
-                Timber.d("%s", measurement)
-            }
-        }
-    }
-
-    private suspend fun setupPLXnotifications(peripheral: BluetoothPeripheral) {
-        peripheral.getCharacteristic(PLX_SERVICE_UUID, PLX_CONTINUOUS_MEASUREMENT_CHAR_UUID)?.let {
-            peripheral.observe(it) { value ->
-                val measurement = PulseOximeterContinuousMeasurement.fromBytes(value)
-                if (measurement.spO2 <= 100 && measurement.pulseRate <= 220) {
-                    pulseOxContinuousChannel.trySend(measurement)
-                }
-                Timber.d("%s", measurement)
-            }
-        }
-
-        peripheral.getCharacteristic(PLX_SERVICE_UUID, PLX_SPOT_MEASUREMENT_CHAR_UUID)?.let {
-            peripheral.observe(it) { value ->
-                val measurement = PulseOximeterSpotMeasurement.fromBytes(value)
-                pulseOxSpotChannel.trySend(measurement)
-                Timber.d("%s", measurement)
+    suspend fun <T> BluetoothPeripheral.setupNotification(channel: Channel<T>, dec: IDecoder<T>)
+    {
+        getCharacteristic(dec.sid, dec.cid)?.let {
+            observe(it) { value ->
+                val measurement = dec.decode(value)
+                channel.trySend(measurement)
+                Timber.d(measurement.toString())
             }
         }
     }
@@ -236,44 +173,18 @@ internal class BluetoothHandler private constructor(context: Context) {
 
     companion object {
         // UUIDs for the Blood Pressure service (BLP)
-        val BLP_SERVICE_UUID: UUID = UUID.fromString("00001810-0000-1000-8000-00805f9b34fb")
-        val BLP_MEASUREMENT_CHARACTERISTIC_UUID: UUID = UUID.fromString("00002A35-0000-1000-8000-00805f9b34fb")
-
-        // UUIDs for the Health Thermometer service (HTS)
-        val HTS_SERVICE_UUID = UUID.fromString("00001809-0000-1000-8000-00805f9b34fb")
-        val HTS_MEASUREMENT_CHARACTERISTIC_UUID = UUID.fromString("00002A1C-0000-1000-8000-00805f9b34fb")
-
-        // UUIDs for the Heart Rate service (HRS)
-        val HRS_SERVICE_UUID: UUID = UUID.fromString("0000180D-0000-1000-8000-00805f9b34fb")
-        val HRS_MEASUREMENT_CHARACTERISTIC_UUID: UUID = UUID.fromString("00002A37-0000-1000-8000-00805f9b34fb")
-
-        // UUIDs for the Device Information service (DIS)
-        val DIS_SERVICE_UUID: UUID = UUID.fromString("0000180A-0000-1000-8000-00805f9b34fb")
-        val MANUFACTURER_NAME_CHARACTERISTIC_UUID: UUID = UUID.fromString("00002A29-0000-1000-8000-00805f9b34fb")
-        val MODEL_NUMBER_CHARACTERISTIC_UUID: UUID = UUID.fromString("00002A24-0000-1000-8000-00805f9b34fb")
+        val BLP_SERVICE_UUID = UUID.fromString("00001810-0000-1000-8000-00805f9b34fb")
+        val BLP_MEASUREMENT_CHARACTERISTIC_UUID = UUID.fromString("00002A35-0000-1000-8000-00805f9b34fb")
 
         // UUIDs for the Current Time service (CTS)
-        val CTS_SERVICE_UUID: UUID = UUID.fromString("00001805-0000-1000-8000-00805f9b34fb")
-        val CURRENT_TIME_CHARACTERISTIC_UUID: UUID = UUID.fromString("00002A2B-0000-1000-8000-00805f9b34fb")
+        val CTS_SERVICE_UUID = UUID.fromString("00001805-0000-1000-8000-00805f9b34fb")
+        val CURRENT_TIME_CHARACTERISTIC_UUID = UUID.fromString("00002A2B-0000-1000-8000-00805f9b34fb")
 
-        // UUIDs for the Battery Service (BAS)
-        val BTS_SERVICE_UUID: UUID = UUID.fromString("0000180F-0000-1000-8000-00805f9b34fb")
-        val BATTERY_LEVEL_CHARACTERISTIC_UUID: UUID = UUID.fromString("00002A19-0000-1000-8000-00805f9b34fb")
-
-        // UUIDs for the Pulse Oximeter Service (PLX)
-        val PLX_SERVICE_UUID: UUID = UUID.fromString("00001822-0000-1000-8000-00805f9b34fb")
-        val PLX_SPOT_MEASUREMENT_CHAR_UUID: UUID = UUID.fromString("00002a5e-0000-1000-8000-00805f9b34fb")
-        val PLX_CONTINUOUS_MEASUREMENT_CHAR_UUID: UUID = UUID.fromString("00002a5f-0000-1000-8000-00805f9b34fb")
-
-        // UUIDs for the Weight Scale Service (WSS)
-        val WSS_SERVICE_UUID: UUID = UUID.fromString("0000181D-0000-1000-8000-00805f9b34fb")
-        val WSS_MEASUREMENT_CHAR_UUID: UUID = UUID.fromString("00002A9D-0000-1000-8000-00805f9b34fb")
-        val GLUCOSE_SERVICE_UUID: UUID = UUID.fromString("00001808-0000-1000-8000-00805f9b34fb")
-        val GLUCOSE_MEASUREMENT_CHARACTERISTIC_UUID: UUID = UUID.fromString("00002A18-0000-1000-8000-00805f9b34fb")
-        val GLUCOSE_RECORD_ACCESS_POINT_CHARACTERISTIC_UUID: UUID = UUID.fromString("00002A52-0000-1000-8000-00805f9b34fb")
+        val GLUCOSE_SERVICE_UUID = UUID.fromString("00001808-0000-1000-8000-00805f9b34fb")
+        val GLUCOSE_RECORD_ACCESS_POINT_CHARACTERISTIC_UUID = UUID.fromString("00002A52-0000-1000-8000-00805f9b34fb")
 
         // Contour Glucose Service
-        val CONTOUR_SERVICE_UUID: UUID = UUID.fromString("00000000-0002-11E2-9E96-0800200C9A66")
+        val CONTOUR_SERVICE_UUID = UUID.fromString("00000000-0002-11E2-9E96-0800200C9A66")
         val CONTOUR_CLOCK = UUID.fromString("00001026-0002-11E2-9E96-0800200C9A66")
 
         private var instance: BluetoothHandler? = null
@@ -283,6 +194,9 @@ internal class BluetoothHandler private constructor(context: Context) {
             }
             return instance!!
         }
+
+        suspend fun <T> BluetoothPeripheral.read(decoder: IDecoder<T>) =
+            getCharacteristic(decoder.sid, decoder.cid)?.let { decoder.decode(readCharacteristic(it)) }
     }
 
     @JvmField
