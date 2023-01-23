@@ -19,6 +19,9 @@
         android:theme="@style/Theme.WearSync"
         tools:targetApi="31">
         <activity
+            android:name=".ActivityPermissions"
+            android:exported="false" />
+        <activity
             android:name=".ActivityScan"
             android:exported="false" />
         <activity
