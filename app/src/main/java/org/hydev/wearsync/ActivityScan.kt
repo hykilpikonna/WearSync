@@ -113,7 +113,9 @@ class ActivityScan : AppCompatActivity() {
         // Click scanned device
         binding.lvScanned.setOnItemClickListener { parent, view, position, id ->
             central.stopScan()
-            bluetoothHandler.connectPeripheral(scannedDevices[position])
+            bluetoothHandler.connectPeripheral(scannedDevices[position]) {
+                view.snack("✅ Connected.")
+            }
         }
 
         // Format and show bounded device list
@@ -129,15 +131,9 @@ class ActivityScan : AppCompatActivity() {
             view.snack("Connecting...")
 
             // Scan for the device with the MAC address
-            central.stopScan()
-            central.scanForPeripheralsWithAddresses(arrayOf(dev.address), { peripheral, scanResult ->
-                if (peripheral.address != dev.address) return@scanForPeripheralsWithAddresses
-
+            bluetoothHandler.connectAddress(dev.address) {
                 view.snack("✅ Connected.")
-
-                central.stopScan()
-                bluetoothHandler.connectPeripheral(peripheral)
-            }, {})
+            }
         }
 
         collectHeartRate(bluetoothHandler)

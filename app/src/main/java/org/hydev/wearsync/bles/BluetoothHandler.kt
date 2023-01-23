@@ -15,7 +15,7 @@ internal class BluetoothHandler private constructor(context: Context) {
 
     private var currentTimeCounter = 0
     val heartRateChannel = Channel<HeartRateMeasurement>(UNLIMITED)
-    val bloodpressureChannel = Channel<BloodPressureMeasurement>(UNLIMITED)
+    val bloodPressureChannel = Channel<BloodPressureMeasurement>(UNLIMITED)
     val glucoseChannel = Channel<GlucoseMeasurement>(UNLIMITED)
     val pulseOxSpotChannel = Channel<PulseOximeterSpotMeasurement>(UNLIMITED)
     val pulseOxContinuousChannel = Channel<PulseOximeterContinuousMeasurement>(UNLIMITED)
@@ -171,7 +171,7 @@ internal class BluetoothHandler private constructor(context: Context) {
         peripheral.getCharacteristic(BLP_SERVICE_UUID, BLP_MEASUREMENT_CHARACTERISTIC_UUID)?.let {
             peripheral.observe(it) { value ->
                 val measurement = BloodPressureMeasurement.fromBytes(value)
-                bloodpressureChannel.trySend(measurement)
+                bloodPressureChannel.trySend(measurement)
                 Timber.d("%s", measurement)
             }
         }
@@ -207,18 +207,20 @@ internal class BluetoothHandler private constructor(context: Context) {
         }
     }
 
-    private fun startScanning() {
-        central.scanForPeripheralsWithServices(
-            supportedServices,
-            { peripheral, scanResult ->
-                Timber.i("Found peripheral '${peripheral.name}' with RSSI ${scanResult.rssi}")
-                central.stopScan()
-                connectPeripheral(peripheral)
-            },
-            { scanFailure -> Timber.e("scan failed with reason $scanFailure") })
+    /**
+     * Scan and connect to a peripheral at a specific address
+     */
+    fun connectAddress(address: String, callback: (BluetoothPeripheral) -> Unit = {}) {
+        central.stopScan()
+        central.scanForPeripheralsWithAddresses(arrayOf(address), { peripheral, scanResult ->
+            if (peripheral.address != address) return@scanForPeripheralsWithAddresses
+
+            central.stopScan()
+            connectPeripheral(peripheral) { callback(peripheral) }
+        }, {})
     }
 
-    fun connectPeripheral(peripheral: BluetoothPeripheral) {
+    fun connectPeripheral(peripheral: BluetoothPeripheral, callback: () -> Unit = {}) {
         peripheral.observeBondState {
             Timber.i("Bond state is $it")
         }
@@ -226,6 +228,7 @@ internal class BluetoothHandler private constructor(context: Context) {
         scope.launch {
             try {
                 central.connectPeripheral(peripheral)
+                callback()
             } catch (connectionFailed: ConnectionFailedException) {
                 Timber.e("connection failed")
             }
@@ -269,14 +272,11 @@ internal class BluetoothHandler private constructor(context: Context) {
         val GLUCOSE_SERVICE_UUID: UUID = UUID.fromString("00001808-0000-1000-8000-00805f9b34fb")
         val GLUCOSE_MEASUREMENT_CHARACTERISTIC_UUID: UUID = UUID.fromString("00002A18-0000-1000-8000-00805f9b34fb")
         val GLUCOSE_RECORD_ACCESS_POINT_CHARACTERISTIC_UUID: UUID = UUID.fromString("00002A52-0000-1000-8000-00805f9b34fb")
-        val GLUCOSE_MEASUREMENT_CONTEXT_CHARACTERISTIC_UUID: UUID = UUID.fromString("00002A34-0000-1000-8000-00805f9b34fb")
 
         // Contour Glucose Service
         val CONTOUR_SERVICE_UUID: UUID = UUID.fromString("00000000-0002-11E2-9E96-0800200C9A66")
         private val CONTOUR_CLOCK = UUID.fromString("00001026-0002-11E2-9E96-0800200C9A66")
         private var instance: BluetoothHandler? = null
-
-        private val supportedServices = arrayOf(BLP_SERVICE_UUID, HTS_SERVICE_UUID, HRS_SERVICE_UUID, PLX_SERVICE_UUID, WSS_SERVICE_UUID, GLUCOSE_SERVICE_UUID)
 
         @JvmStatic
         @Synchronized
