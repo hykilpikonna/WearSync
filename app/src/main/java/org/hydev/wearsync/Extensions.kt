@@ -18,3 +18,4 @@ var Context.chosenDevice: String?
     get() = pref.getString("mac", null)
     set(value) = pref.edit { putString("mac", value) }
 
+inline fun <reified T : Activity> Context.act() = startActivity(Intent(this, T::class.java))

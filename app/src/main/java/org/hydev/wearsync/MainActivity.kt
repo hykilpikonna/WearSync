@@ -2,7 +2,6 @@ package org.hydev.wearsync
 
 import android.annotation.SuppressLint
 import android.bluetooth.BluetoothAdapter
-import android.content.Context
 import android.content.Intent
 import android.os.Bundle
 import android.view.Menu
@@ -24,9 +23,6 @@ import java.util.*
 class MainActivity : AppCompatActivity()
 {
     lateinit var binding: ActivityMainBinding
-
-    val pref get() = getSharedPreferences("settings", Context.MODE_PRIVATE)
-    val mac get() = pref.getString("device", "None")
 
     val enableBluetoothRequest =
         registerForActivityResult(ActivityResultContracts.StartActivityForResult()) {
@@ -53,7 +49,7 @@ class MainActivity : AppCompatActivity()
 
         setSupportActionBar(binding.toolbar)
 
-        binding.content.tvDevice.text = "Configured Device: $mac"
+        binding.content.tvDevice.text = "Configured Device: $chosenDevice"
 
         binding.fab.setOnClickListener { view ->
             Snackbar.make(view, "owo", Snackbar.LENGTH_LONG)
@@ -62,7 +58,8 @@ class MainActivity : AppCompatActivity()
             println("owo")
         }
 
-        if (!hasPermissions()) startActivity(Intent(this, ActivityPermissions::class.java))
+        if (chosenDevice == null) act<ActivityScan>()
+        if (!hasPermissions()) act<ActivityPermissions>()
     }
 
     override fun onResume()
@@ -86,8 +83,7 @@ class MainActivity : AppCompatActivity()
         return when (item.itemId)
         {
             R.id.action_settings -> true
-            R.id.action_scan -> {
-                startActivity(Intent(this, ActivityScan::class.java))
+            R.id.action_scan -> { act<ActivityScan>()
                 true
             }
             else -> super.onOptionsItemSelected(item)
