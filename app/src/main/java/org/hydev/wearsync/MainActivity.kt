@@ -1,5 +1,7 @@
 package org.hydev.wearsync
 
+import android.annotation.SuppressLint
+import android.content.Context
 import android.os.Bundle
 import android.view.Menu
 import android.view.MenuItem
@@ -9,8 +11,12 @@ import org.hydev.wearsync.databinding.ActivityMainBinding
 
 class MainActivity : AppCompatActivity()
 {
-    private lateinit var binding: ActivityMainBinding
+    lateinit var binding: ActivityMainBinding
 
+    val pref get() = getSharedPreferences("settings", Context.MODE_PRIVATE)
+    val mac get() = pref.getString("device", "None")
+
+    @SuppressLint("SetTextI18n")
     override fun onCreate(savedInstanceState: Bundle?)
     {
         super.onCreate(savedInstanceState)
@@ -19,6 +25,8 @@ class MainActivity : AppCompatActivity()
         setContentView(binding.root)
 
         setSupportActionBar(binding.toolbar)
+
+        binding.content.tvDevice.text = "Configured Device: $mac"
 
         binding.fab.setOnClickListener { view ->
             Snackbar.make(view, "owo", Snackbar.LENGTH_LONG)
