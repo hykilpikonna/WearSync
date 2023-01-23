@@ -314,13 +314,5 @@ internal class BluetoothHandler private constructor(context: Context) {
                 }
             }
         }
-
-        central.observeAdapterState { state ->
-            when (state) {
-                BluetoothAdapter.STATE_ON -> startScanning()
-            }
-        }
-
-        startScanning()
     }
 }
