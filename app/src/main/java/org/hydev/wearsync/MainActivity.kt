@@ -58,8 +58,8 @@ class MainActivity : AppCompatActivity()
             println("owo")
         }
 
-        if (chosenDevice == null) act<ActivityScan>()
         if (!hasPermissions()) act<ActivityPermissions>()
+        if (chosenDevice == null) act<ActivityScan>()
     }
 
     override fun onResume()
