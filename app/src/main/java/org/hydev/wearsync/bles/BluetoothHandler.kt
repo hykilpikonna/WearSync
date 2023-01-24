@@ -30,7 +30,8 @@ internal class BluetoothHandler private constructor(context: Context) {
         }
     }
 
-    val listeners = HashMap<KClass<*>, MutableList<(Any) -> Unit>>()
+    val listeners: Map<KClass<out IDecoder<out Any>>, ArrayList<(Any) -> Unit>> =
+        decoders.associate { it::class to ArrayList() }
 
     @Suppress("UNCHECKED_CAST")
     inline fun <M : Any, reified D : IDecoder<out M>> observe(crossinline cb: (M) -> Unit) {
@@ -43,11 +44,9 @@ internal class BluetoothHandler private constructor(context: Context) {
     }
 
     private suspend fun <T : Any> BluePeri.observe(dec: IDecoder<T>) {
-        val cls = dec::class
-        listeners[cls] = ArrayList()
-
+        val lst = listeners[dec::class] ?: error("Decoder $dec is not in the listeners list")
         observe(dec) {
-            listeners[cls]?.forEach { cb -> cb(it) }
+            lst.forEach { cb -> cb(it) }
         }
     }
 
