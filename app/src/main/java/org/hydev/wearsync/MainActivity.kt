@@ -81,11 +81,13 @@ class MainActivity : AppCompatActivity()
         influx = prefs.createInflux()
 
         // Scan for devices
-        connectCallback.launch(intent<ActivityScan>())
+        if (prefs.chosenDevice == null) pairCallback.launch(intent<ActivityScan>())
+        else afterPair()
     }
 
-    val connectCallback = actCallback {
-        addRecord("Device connected")
+    val pairCallback = actCallback { afterPair() }
+    fun afterPair() {
+        addRecord("Device configured")
 
         // Start collection
         binding.content.tvDevice.text = "Configured Device: ${prefs.chosenDevice}"
