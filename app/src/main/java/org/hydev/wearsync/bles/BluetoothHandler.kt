@@ -41,34 +41,12 @@ internal class BluetoothHandler private constructor(context: Context) {
                 observe(bloodPressureChannel, BloodPressureDecoder())
                 observe(pulseOxSpotChannel, PLXSpotDecoder())
                 observe(pulseOxContinuousChannel, PLXContinuousDecoder())
-                setupGLXnotifications(this@handle)
             } catch (e: IllegalArgumentException) {
                 Timber.e(e)
             } catch (b: GattException) {
                 Timber.e(b)
             }
         }
-    }
-
-    private suspend fun setupGLXnotifications(peripheral: BluePeri) {
-        peripheral.observe(glucoseChannel, GlucoseDecoder())
-
-        peripheral.getCharacteristic(GLUCOSE_SERVICE_UUID, GLUCOSE_RECORD_ACCESS_POINT_CHARACTERISTIC_UUID)?.let {
-            val result = peripheral.observe(it) { value ->
-                Timber.d("record access response: ${value.asHexString()}")
-            }
-
-            if (result) {
-                writeGetAllGlucoseMeasurements(peripheral)
-            }
-        }
-    }
-
-    private suspend fun writeGetAllGlucoseMeasurements(peripheral: BluePeri) {
-        val OP_CODE_REPORT_STORED_RECORDS: Byte = 1
-        val OPERATOR_ALL_RECORDS: Byte = 1
-        val command = byteArrayOf(OP_CODE_REPORT_STORED_RECORDS, OPERATOR_ALL_RECORDS)
-        peripheral.writeCharacteristic(GLUCOSE_SERVICE_UUID, GLUCOSE_RECORD_ACCESS_POINT_CHARACTERISTIC_UUID, command, WriteType.WITH_RESPONSE)
     }
 
     /**
@@ -82,6 +60,7 @@ internal class BluetoothHandler private constructor(context: Context) {
                 Timber.d(measurement.toString())
             }
         }
+        dec.additionalSetup(this)
     }
 
     suspend fun <T> BluePeri.observe(chan: Channel<T>, dec: IDecoder<T>) =
@@ -114,9 +93,6 @@ internal class BluetoothHandler private constructor(context: Context) {
     }
 
     companion object {
-        val GLUCOSE_SERVICE_UUID = UUID.fromString("00001808-0000-1000-8000-00805f9b34fb")
-        val GLUCOSE_RECORD_ACCESS_POINT_CHARACTERISTIC_UUID = UUID.fromString("00002A52-0000-1000-8000-00805f9b34fb")
-
         private var instance: BluetoothHandler? = null
         val Context.ble get(): BluetoothHandler {
             if (instance == null) {

@@ -5,10 +5,13 @@ import com.welie.blessed.BluetoothBytesParser.Companion.FORMAT_SFLOAT
 import com.welie.blessed.BluetoothBytesParser.Companion.FORMAT_SINT16
 import com.welie.blessed.BluetoothBytesParser.Companion.FORMAT_UINT16
 import com.welie.blessed.BluetoothBytesParser.Companion.FORMAT_UINT8
-import org.hydev.wearsync.bles.BluetoothHandler.Companion.GLUCOSE_SERVICE_UUID
+import com.welie.blessed.WriteType
+import com.welie.blessed.asHexString
+import org.hydev.wearsync.BluePeri
 import org.hydev.wearsync.bles.ObservationUnit
 import org.hydev.wearsync.bles.ObservationUnit.MiligramPerDeciliter
 import org.hydev.wearsync.bles.ObservationUnit.MmolPerLiter
+import timber.log.Timber
 import java.util.*
 
 data class GlucoseMeasurement(
@@ -22,7 +25,11 @@ data class GlucoseMeasurement(
 
 class GlucoseDecoder : IDecoder<GlucoseMeasurement>
 {
-    override val sid = GLUCOSE_SERVICE_UUID
+    companion object {
+        val GLUCOSE_RECORD_AP_CID = UUID.fromString("00002A52-0000-1000-8000-00805f9b34fb")
+    }
+
+    override val sid = UUID.fromString("00001808-0000-1000-8000-00805f9b34fb")
     override val cid = UUID.fromString("00002A18-0000-1000-8000-00805f9b34fb")
 
     override fun decode(value: ByteArray): GlucoseMeasurement
@@ -51,5 +58,19 @@ class GlucoseDecoder : IDecoder<GlucoseMeasurement>
             value = glucoseValue,
             contextWillFollow = contextWillFollow
         )
+    }
+
+    override suspend fun additionalSetup(peri: BluePeri)
+    {
+        peri.getCharacteristic(sid, GLUCOSE_RECORD_AP_CID)?.let {
+            val result = peri.observe(it) { value ->
+                Timber.d("record access response: ${value.asHexString()}")
+            }
+
+            if (result) {
+                // command = (Op code report stored records = 1, operator all records = 1)
+                peri.writeCharacteristic(sid, GLUCOSE_RECORD_AP_CID, byteArrayOf(1, 1), WriteType.WITH_RESPONSE)
+            }
+        }
     }
 }
