@@ -21,6 +21,7 @@ import com.welie.blessed.BluetoothPeripheral
 import kotlin.reflect.KProperty
 import kotlin.reflect.full.isSubclassOf
 
+fun <T> Result<T>.orTrace() = apply { exceptionOrNull()?.printStackTrace() }
 
 fun View.snack(msg: String) = Snackbar.make(this, msg, Snackbar.LENGTH_LONG)
     .setAction("Action", null).show()

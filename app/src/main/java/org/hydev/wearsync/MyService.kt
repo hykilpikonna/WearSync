@@ -49,13 +49,10 @@ class MyService : Service()
     private inline fun <reified T : IDecoder<out Any>> observe() {
         ble.observeAny<T> {
             scope.launch {
-                try {
+                runCatching {
                     println("Adding ${it.javaClass.simpleName} to influxdb")
                     influx add it
-                }
-                catch (e: Exception) {
-                    e.printStackTrace()
-                }
+                }.orTrace()
             }
         }
     }
@@ -65,7 +62,7 @@ class MyService : Service()
         override fun onReceive(ctxt: Context, intent: Intent) {
             val bi = intent.batteryInfo(bm)
             Timber.d("Battery info recorded: $bi")
-            scope.launch { influx add bi }
+            scope.launch { runCatching { influx add bi }.orTrace() }
         }
     }
 
