@@ -55,6 +55,10 @@ dependencies {
 
     // Database library
     implementation "com.influxdb:influxdb-client-kotlin:6.3.0"
+    implementation "org.jetbrains.exposed:exposed-core:0.40.1"
+    implementation "org.jetbrains.exposed:exposed-dao:0.40.1"
+    implementation "org.jetbrains.exposed:exposed-jdbc:0.40.1"
+    implementation 'org.xerial:sqlite-jdbc:3.40.0.0'
 
     testImplementation 'junit:junit:4.13.2'
     androidTestImplementation 'androidx.test.ext:junit:1.1.5'
