@@ -5,7 +5,6 @@ import com.influxdb.annotations.Measurement
 import com.welie.blessed.BluetoothBytesParser
 import com.welie.blessed.BluetoothBytesParser.Companion.FORMAT_UINT16
 import com.welie.blessed.BluetoothBytesParser.Companion.FORMAT_UINT8
-import org.hydev.wearsync.bles.SensorContactFeature
 import java.nio.ByteOrder
 import java.time.Instant
 import java.util.*
@@ -22,6 +21,14 @@ data class HeartRateMeasurement(
     @Column(timestamp = true)
     val createdAt: Instant = Instant.now(),
 )
+
+/**
+ * Enum that contains all sensor contact feature as specified here:
+ * https://www.bluetooth.com/specifications/gatt/viewer?attributeXmlFile=org.bluetooth.characteristic.heart_rate_measurement.xml
+ */
+enum class SensorContactFeature {
+    NotSupported, SupportedNoContact, SupportedAndContact
+}
 
 class HeartRateDecoder : IDecoder<HeartRateMeasurement>
 {
