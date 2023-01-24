@@ -7,7 +7,6 @@ import android.os.Looper
 import android.view.View
 import android.widget.ArrayAdapter
 import androidx.appcompat.app.AppCompatActivity
-import com.welie.blessed.BluetoothPeripheral
 import kotlinx.coroutines.*
 import org.hydev.wearsync.bles.BluetoothHandler.Companion.ble
 import org.hydev.wearsync.databinding.ActivityScanBinding
@@ -41,7 +40,7 @@ class ActivityScan : AppCompatActivity() {
         val pairedAddresses = pairedDevices.map { it.address }.toSet()
 
         // Scan devices
-        val scannedDevices = ArrayList<BluetoothPeripheral>()
+        val scannedDevices = ArrayList<BluePeri>()
         ble.central.scanForPeripherals({ peripheral, scanResult ->
             if (peripheral.name.isBlank() || scannedDevices.contains(peripheral)) return@scanForPeripherals
 

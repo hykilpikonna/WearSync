@@ -5,6 +5,7 @@ import com.welie.blessed.*
 import kotlinx.coroutines.*
 import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.channels.Channel.Factory.UNLIMITED
+import org.hydev.wearsync.BluePeri
 import org.hydev.wearsync.bles.decoders.*
 import timber.log.Timber
 import timber.log.Timber.DebugTree
@@ -14,7 +15,7 @@ import java.util.*
 internal class BluetoothHandler private constructor(context: Context) {
     var central: BluetoothCentralManager
     val scope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
-    
+
     val batteryChannel = Channel<BatteryMeasurement>(UNLIMITED)
     val heartRateChannel = Channel<HeartRateMeasurement>(UNLIMITED)
     val bloodPressureChannel = Channel<BloodPressureMeasurement>(UNLIMITED)
@@ -24,7 +25,7 @@ internal class BluetoothHandler private constructor(context: Context) {
     val temperatureChannel = Channel<TemperatureMeasurement>(UNLIMITED)
     val weightChannel = Channel<WeightMeasurement>(UNLIMITED)
 
-    private fun handlePeripheral(peripheral: BluetoothPeripheral) {
+    private fun handlePeripheral(peripheral: BluePeri) {
         scope.launch {
             try {
                 Timber.i("MTU is ${peripheral.requestMtu(185)}")
@@ -34,13 +35,13 @@ internal class BluetoothHandler private constructor(context: Context) {
                 Timber.i("Received: ${peripheral.read(ModelDecoder())}")
                 Timber.i("Battery level: ${peripheral.read(BatteryDecoder())}")
 
-                peripheral.setupNotification(batteryChannel, BatteryDecoder())
-                peripheral.setupNotification(heartRateChannel, HeartRateDecoder())
-                peripheral.setupNotification(temperatureChannel, TemperatureDecoder())
-                peripheral.setupNotification(weightChannel, WeightDecoder())
-                peripheral.setupNotification(bloodPressureChannel, BloodPressureDecoder())
-                peripheral.setupNotification(pulseOxSpotChannel, PLXSpotDecoder())
-                peripheral.setupNotification(pulseOxContinuousChannel, PLXContinuousDecoder())
+                peripheral.observe(batteryChannel, BatteryDecoder())
+                peripheral.observe(heartRateChannel, HeartRateDecoder())
+                peripheral.observe(temperatureChannel, TemperatureDecoder())
+                peripheral.observe(weightChannel, WeightDecoder())
+                peripheral.observe(bloodPressureChannel, BloodPressureDecoder())
+                peripheral.observe(pulseOxSpotChannel, PLXSpotDecoder())
+                peripheral.observe(pulseOxContinuousChannel, PLXContinuousDecoder())
                 setupGLXnotifications(peripheral)
 
                 peripheral.getCharacteristic(CONTOUR_SERVICE_UUID, CONTOUR_CLOCK)?.let {
@@ -54,7 +55,7 @@ internal class BluetoothHandler private constructor(context: Context) {
         }
     }
 
-    private suspend fun writeContourClock(peripheral: BluetoothPeripheral) {
+    private suspend fun writeContourClock(peripheral: BluePeri) {
         val calendar = Calendar.getInstance()
         val offsetInMinutes = calendar.timeZone.rawOffset / 60000
         calendar.timeZone = TimeZone.getTimeZone("UTC")
@@ -70,8 +71,8 @@ internal class BluetoothHandler private constructor(context: Context) {
         peripheral.writeCharacteristic(CONTOUR_SERVICE_UUID, CONTOUR_CLOCK, parser.value, WriteType.WITH_RESPONSE)
     }
 
-    private suspend fun setupGLXnotifications(peripheral: BluetoothPeripheral) {
-        peripheral.setupNotification(glucoseChannel, GlucoseDecoder())
+    private suspend fun setupGLXnotifications(peripheral: BluePeri) {
+        peripheral.observe(glucoseChannel, GlucoseDecoder())
 
         peripheral.getCharacteristic(GLUCOSE_SERVICE_UUID, GLUCOSE_RECORD_ACCESS_POINT_CHARACTERISTIC_UUID)?.let {
             val result = peripheral.observe(it) { value ->
@@ -84,28 +85,33 @@ internal class BluetoothHandler private constructor(context: Context) {
         }
     }
 
-    private suspend fun writeGetAllGlucoseMeasurements(peripheral: BluetoothPeripheral) {
+    private suspend fun writeGetAllGlucoseMeasurements(peripheral: BluePeri) {
         val OP_CODE_REPORT_STORED_RECORDS: Byte = 1
         val OPERATOR_ALL_RECORDS: Byte = 1
         val command = byteArrayOf(OP_CODE_REPORT_STORED_RECORDS, OPERATOR_ALL_RECORDS)
         peripheral.writeCharacteristic(GLUCOSE_SERVICE_UUID, GLUCOSE_RECORD_ACCESS_POINT_CHARACTERISTIC_UUID, command, WriteType.WITH_RESPONSE)
     }
 
-    suspend fun <T> BluetoothPeripheral.setupNotification(channel: Channel<T>, dec: IDecoder<T>)
-    {
+    /**
+     * Observe a specific mesasurement
+     */
+    suspend fun <T> BluePeri.observe(dec: IDecoder<T>, callback: (T) -> Unit) {
         getCharacteristic(dec.sid, dec.cid)?.let {
             observe(it) { value ->
                 val measurement = dec.decode(value)
-                channel.trySend(measurement)
+                callback(measurement)
                 Timber.d(measurement.toString())
             }
         }
     }
 
+    suspend fun <T> BluePeri.observe(chan: Channel<T>, dec: IDecoder<T>) =
+        observe(dec) { chan.trySend(it) }
+
     /**
      * Scan and connect to a peripheral at a specific address
      */
-    fun connectAddress(address: String, callback: (BluetoothPeripheral) -> Unit = {}) {
+    fun connectAddress(address: String, callback: (BluePeri) -> Unit = {}) {
         central.stopScan()
         central.scanForPeripheralsWithAddresses(arrayOf(address), { peripheral, scanResult ->
             if (peripheral.address != address) return@scanForPeripheralsWithAddresses
@@ -115,10 +121,8 @@ internal class BluetoothHandler private constructor(context: Context) {
         }, {})
     }
 
-    fun connectPeripheral(peripheral: BluetoothPeripheral, callback: () -> Unit = {}) {
-        peripheral.observeBondState {
-            Timber.i("Bond state is $it")
-        }
+    fun connectPeripheral(peripheral: BluePeri, callback: () -> Unit = {}) {
+        peripheral.observeBondState { Timber.i("Bond state is $it") }
 
         scope.launch {
             try {
@@ -146,7 +150,7 @@ internal class BluetoothHandler private constructor(context: Context) {
             return instance!!
         }
 
-        suspend fun <T> BluetoothPeripheral.read(decoder: IDecoder<T>) =
+        suspend fun <T> BluePeri.read(decoder: IDecoder<T>) =
             getCharacteristic(decoder.sid, decoder.cid)?.let { decoder.decode(readCharacteristic(it)) }
     }
 

@@ -17,6 +17,7 @@ import com.google.android.material.snackbar.Snackbar
 import com.influxdb.client.domain.WritePrecision
 import com.influxdb.client.kotlin.InfluxDBClientKotlin
 import com.influxdb.client.kotlin.InfluxDBClientKotlinFactory
+import com.welie.blessed.BluetoothPeripheral
 import kotlin.reflect.KProperty
 import kotlin.reflect.full.isSubclassOf
 
@@ -25,8 +26,8 @@ fun View.snack(msg: String) = Snackbar.make(this, msg, Snackbar.LENGTH_LONG)
     .setAction("Action", null).show()
 
 inline fun <reified T> Context.getSysServ() = getSystemService(T::class.java) as T
+typealias BluePeri = BluetoothPeripheral
 fun Context.blueMan() = getSysServ<BluetoothManager>()
-
 
 
 interface Prefs {
