@@ -1,11 +1,14 @@
 package org.hydev.wearsync.bles.decoders
 
+import com.influxdb.annotations.Column
 import com.influxdb.annotations.Measurement
 import com.welie.blessed.asUInt8
 import java.util.*
 
 @Measurement(name = "wear-battery")
-data class BatteryMeasurement(val percent: UInt)
+data class BatteryMeasurement(
+    @Column val percent: UInt
+)
 
 class BatteryDecoder : IDecoder<BatteryMeasurement>
 {
