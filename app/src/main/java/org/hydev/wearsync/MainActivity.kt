@@ -8,6 +8,8 @@ import android.view.Menu
 import android.view.MenuItem
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.appcompat.app.AppCompatActivity
+import com.influxdb.client.domain.WritePrecision
+import com.influxdb.client.kotlin.InfluxDBClientKotlinFactory
 import kotlinx.coroutines.*
 import kotlinx.coroutines.flow.consumeAsFlow
 import org.hydev.wearsync.ActivityPermissions.Companion.hasPermissions
@@ -23,15 +25,9 @@ class MainActivity : AppCompatActivity()
 {
     lateinit var binding: ActivityMainBinding
 
-    val enableBluetoothRequest =
-        registerForActivityResult(ActivityResultContracts.StartActivityForResult()) {
-            if (it.resultCode == RESULT_OK) {
-                // Bluetooth has been enabled
-            } else {
-                // Bluetooth has not been enabled, try again
-                ensureBluetooth()
-            }
-        }
+    val enableBluetoothRequest = registerForActivityResult(ActivityResultContracts.StartActivityForResult()) {
+        if (it.resultCode != RESULT_OK) ensureBluetooth()
+    }
 
     fun ensureBluetooth() {
         if (blueMan().adapter?.isEnabled == false)
@@ -73,7 +69,10 @@ class MainActivity : AppCompatActivity()
     {
         return when (item.itemId)
         {
-            R.id.action_settings -> true
+            R.id.action_settings -> {
+                act<ActivitySettings>()
+                true
+            }
             R.id.action_scan -> {
                 act<ActivityScan>()
                 true

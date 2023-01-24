@@ -31,7 +31,7 @@ class ActivityScan : AppCompatActivity() {
         println("OnCreate called, Initializing...")
 
         // Device exists
-        chosenDevice?.let { addr ->
+        prefs.chosenDevice?.let { addr ->
             ble.connectAddress(addr) { connected(addr) }
             return
         }
@@ -86,7 +86,7 @@ class ActivityScan : AppCompatActivity() {
     fun connected(address: String)
     {
         view.snack("✅ Connected.")
-        chosenDevice = address
+        prefs.chosenDevice = address
         finish()
     }
 }
