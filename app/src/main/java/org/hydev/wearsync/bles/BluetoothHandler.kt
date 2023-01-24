@@ -12,7 +12,9 @@ import java.nio.ByteOrder
 import java.util.*
 
 internal class BluetoothHandler private constructor(context: Context) {
-    private var currentTimeCounter = 0
+    var central: BluetoothCentralManager
+    val scope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
+    
     val batteryChannel = Channel<BatteryMeasurement>(UNLIMITED)
     val heartRateChannel = Channel<HeartRateMeasurement>(UNLIMITED)
     val bloodPressureChannel = Channel<BloodPressureMeasurement>(UNLIMITED)
@@ -40,7 +42,6 @@ internal class BluetoothHandler private constructor(context: Context) {
                 peripheral.setupNotification(pulseOxSpotChannel, PLXSpotDecoder())
                 peripheral.setupNotification(pulseOxContinuousChannel, PLXContinuousDecoder())
                 setupGLXnotifications(peripheral)
-                setupCTSnotifications(peripheral)
 
                 peripheral.getCharacteristic(CONTOUR_SERVICE_UUID, CONTOUR_CLOCK)?.let {
                     writeContourClock(peripheral)
@@ -149,15 +150,9 @@ internal class BluetoothHandler private constructor(context: Context) {
             getCharacteristic(decoder.sid, decoder.cid)?.let { decoder.decode(readCharacteristic(it)) }
     }
 
-    @JvmField
-    var central: BluetoothCentralManager
-
-    private val scope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
-
     init {
         Timber.plant(DebugTree())
         central = BluetoothCentralManager(context)
-
         central.observeConnectionState { peripheral, state ->
             Timber.i("Peripheral '${peripheral.name}' is $state")
             when (state) {
@@ -170,8 +165,7 @@ internal class BluetoothHandler private constructor(context: Context) {
                         central.autoConnectPeripheral(peripheral)
                     }
                 }
-                else -> {
-                }
+                else -> {}
             }
         }
     }
