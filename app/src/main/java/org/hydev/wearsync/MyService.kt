@@ -18,6 +18,7 @@ import org.hydev.wearsync.bles.BluetoothHandler.Companion.ble
 import org.hydev.wearsync.bles.decoders.BatteryDecoder
 import org.hydev.wearsync.bles.decoders.HeartRateDecoder
 import org.hydev.wearsync.bles.decoders.IDecoder
+import java.util.concurrent.atomic.AtomicLong
 
 
 class MyService : Service()
@@ -26,16 +27,16 @@ class MyService : Service()
     private val bm by lazy { getSysServ<BatteryManager>() }
 
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
+    private val count = AtomicLong()
 
     override fun onBind(intent: Intent?) = null
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int
     {
         influx = prefs.createInflux()
         startCollect()
-
         registerReceiver(mBatInfoReceiver, IntentFilter(Intent.ACTION_BATTERY_CHANGED))
 
-        startForeground(NOTIF_ID, "Just started!".toNotif())
+        "Just started!".notif()
         return super.onStartCommand(intent, flags, startId)
     }
 
@@ -51,6 +52,8 @@ class MyService : Service()
         runCatching {
             println("Adding ${it.javaClass.simpleName} to influxdb")
             influx add it
+
+            "Recorded ${count.addAndGet(1)} events!".notif()
         }.orTrace()
     }
 
@@ -61,13 +64,14 @@ class MyService : Service()
     private val intent = PendingIntent.getActivity(this, 0, intent<MainActivity>(),
         PendingIntent.FLAG_IMMUTABLE or PendingIntent.FLAG_UPDATE_CURRENT)
 
-    private fun String.toNotif() = NotificationCompat.Builder(this@MyService, NOTIF_CHANNEL_ID)
-        .setSmallIcon(R.drawable.ic_watch_24)
-        .setContentIntent(intent)
-        .setContentTitle("🐱 Running!")
-        .setOngoing(true)
-        .setSubText(this)
-        .build()
+    private fun String.notif() = startForeground(NOTIF_ID,
+        NotificationCompat.Builder(this@MyService, NOTIF_CHANNEL_ID)
+            .setSmallIcon(R.drawable.ic_watch_24)
+            .setContentIntent(intent)
+            .setContentTitle("🐱 Running!")
+            .setOngoing(true)
+            .setSubText(this)
+            .build())
 
     companion object
     {
