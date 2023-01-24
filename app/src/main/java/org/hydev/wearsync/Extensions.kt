@@ -18,6 +18,7 @@ import com.influxdb.client.domain.WritePrecision
 import com.influxdb.client.kotlin.InfluxDBClientKotlin
 import com.influxdb.client.kotlin.InfluxDBClientKotlinFactory
 import com.welie.blessed.BluetoothPeripheral
+import java.lang.reflect.Modifier
 import kotlin.reflect.KProperty
 import kotlin.reflect.full.isSubclassOf
 
@@ -79,3 +80,16 @@ fun ComponentActivity.actCallback(fn: ActivityResultCallback<ActivityResult>) =
     registerForActivityResult(ActivityResultContracts.StartActivityForResult(), fn)
 
 suspend infix fun <T> InfluxDBClientKotlin.add(meas: T) = getWriteKotlinApi().writeMeasurement(meas, WritePrecision.MS)
+
+fun Any.reflectToString(): String {
+    val s = ArrayList<String>()
+    var clazz: Class<in Any>? = javaClass
+    while (clazz != null) {
+        s += clazz.declaredFields.filterNot { Modifier.isStatic(it.modifiers) }.map {
+            it.isAccessible = true
+            "${it.name}=${it.get(this)?.toString()?.trim()}"
+        }
+        clazz = clazz.superclass
+    }
+    return "{ ${s.joinToString(", ")} }"
+}
