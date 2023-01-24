@@ -3,26 +3,15 @@ package org.hydev.wearsync.bles
 import android.content.Context
 import com.welie.blessed.*
 import kotlinx.coroutines.*
-import kotlinx.coroutines.channels.Channel
-import kotlinx.coroutines.channels.Channel.Factory.UNLIMITED
 import org.hydev.wearsync.BluePeri
 import org.hydev.wearsync.bles.decoders.*
 import timber.log.Timber
 import timber.log.Timber.DebugTree
-import java.util.*
+import kotlin.reflect.KClass
 
 internal class BluetoothHandler private constructor(context: Context) {
     var central: BluetoothCentralManager
     val scope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
-
-    val batteryChannel = Channel<BatteryMeasurement>(UNLIMITED)
-    val heartRateChannel = Channel<HeartRateMeasurement>(UNLIMITED)
-    val bloodPressureChannel = Channel<BloodPressureMeasurement>(UNLIMITED)
-    val glucoseChannel = Channel<GlucoseMeasurement>(UNLIMITED)
-    val pulseOxSpotChannel = Channel<PulseOximeterSpotMeasurement>(UNLIMITED)
-    val pulseOxContinuousChannel = Channel<PulseOximeterContinuousMeasurement>(UNLIMITED)
-    val temperatureChannel = Channel<TemperatureMeasurement>(UNLIMITED)
-    val weightChannel = Channel<WeightMeasurement>(UNLIMITED)
 
     private fun BluePeri.handle() {
         scope.launch {
@@ -34,48 +23,42 @@ internal class BluetoothHandler private constructor(context: Context) {
                 Timber.i("Received: ${read(ModelDecoder())}")
                 Timber.i("Battery level: ${read(BatteryDecoder())}")
 
-                observe(batteryChannel, BatteryDecoder())
-                observe(heartRateChannel, HeartRateDecoder())
-                observe(temperatureChannel, TemperatureDecoder())
-                observe(weightChannel, WeightDecoder())
-                observe(bloodPressureChannel, BloodPressureDecoder())
-                observe(pulseOxSpotChannel, PLXSpotDecoder())
-                observe(pulseOxContinuousChannel, PLXContinuousDecoder())
-            } catch (e: IllegalArgumentException) {
-                Timber.e(e)
-            } catch (b: GattException) {
-                Timber.e(b)
+                decoders.forEach { observe(it) }
             }
+            catch (e: IllegalArgumentException) { Timber.e(e) }
+            catch (b: GattException) { Timber.e(b) }
         }
     }
 
-    /**
-     * Observe a specific mesasurement
-     */
-    suspend fun <T> BluePeri.observe(dec: IDecoder<T>, callback: (T) -> Unit) {
-        getCharacteristic(dec.sid, dec.cid)?.let {
-            observe(it) { value ->
-                val measurement = dec.decode(value)
-                callback(measurement)
-                Timber.d(measurement.toString())
-            }
-        }
-        dec.additionalSetup(this)
+    val listeners = HashMap<KClass<*>, MutableList<(Any) -> Unit>>()
+
+    inline fun <M : Any, reified D : IDecoder<M>> observe(crossinline cb: (M) -> Unit)
+    {
+        (listeners[D::class] ?: error("Cannot observe unknown decoder class ${D::class}"))
+            .add { cb(it as M) }
     }
 
-    suspend fun <T> BluePeri.observe(chan: Channel<T>, dec: IDecoder<T>) =
-        observe(dec) { chan.trySend(it) }
+    private suspend fun <T : Any> BluePeri.observe(dec: IDecoder<T>) {
+        val cls = dec::class
+        listeners[cls] = ArrayList()
+
+        observe(dec) {
+            listeners[cls]?.forEach { cb -> cb(it) }
+        }
+    }
 
     /**
      * Scan and connect to a peripheral at a specific address
      */
     fun connectAddress(address: String, callback: (BluePeri) -> Unit = {}) {
+        Timber.d("Scanning for device with address $address")
         central.stopScan()
-        central.scanForPeripheralsWithAddresses(arrayOf(address), { peripheral, scanResult ->
-            if (peripheral.address != address) return@scanForPeripheralsWithAddresses
+        central.scanForPeripheralsWithAddresses(arrayOf(address), { peri, _ ->
+            if (peri.address != address) return@scanForPeripheralsWithAddresses
+            Timber.d("Device found, connecting...")
 
             central.stopScan()
-            connectPeripheral(peripheral) { callback(peripheral) }
+            connectPeripheral(peri) { callback(peri) }
         }, {})
     }
 
@@ -93,6 +76,9 @@ internal class BluetoothHandler private constructor(context: Context) {
     }
 
     companion object {
+        val decoders = listOf(BatteryDecoder(), BloodPressureDecoder(), GlucoseDecoder(), HeartRateDecoder(),
+            PLXSpotDecoder(), PLXContinuousDecoder(), TemperatureDecoder(), WeightDecoder())
+
         private var instance: BluetoothHandler? = null
         val Context.ble get(): BluetoothHandler {
             if (instance == null) {
@@ -103,6 +89,20 @@ internal class BluetoothHandler private constructor(context: Context) {
 
         suspend fun <T> BluePeri.read(decoder: IDecoder<T>) =
             getCharacteristic(decoder.sid, decoder.cid)?.let { decoder.decode(readCharacteristic(it)) }
+
+        /**
+         * Observe a specific measurement
+         */
+        private suspend fun <T> BluePeri.observe(dec: IDecoder<T>, callback: (T) -> Unit) {
+            getCharacteristic(dec.sid, dec.cid)?.let {
+                observe(it) { value ->
+                    val measurement = dec.decode(value)
+                    callback(measurement)
+                    Timber.d(measurement.toString())
+                }
+            }
+            dec.additionalSetup(this)
+        }
     }
 
     init {
