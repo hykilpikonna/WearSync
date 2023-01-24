@@ -4,10 +4,12 @@ import android.app.Activity
 import android.bluetooth.BluetoothManager
 import android.content.Context
 import android.content.Intent
+import android.os.Build
 import android.view.View
 import androidx.core.content.edit
 import androidx.preference.PreferenceManager
 import com.google.android.material.snackbar.Snackbar
+import com.influxdb.client.domain.WritePrecision
 import com.influxdb.client.kotlin.InfluxDBClientKotlin
 import com.influxdb.client.kotlin.InfluxDBClientKotlinFactory
 import kotlin.reflect.KProperty
@@ -30,6 +32,7 @@ interface Prefs {
     var infToken: String?
 
     fun createInflux(): InfluxDBClientKotlin
+    suspend fun influxPing()
 }
 
 val Context.pref get() = PreferenceManager.getDefaultSharedPreferences(this)
@@ -49,6 +52,10 @@ val Context.prefs get() = object : Prefs {
 
     override fun createInflux() = InfluxDBClientKotlinFactory
         .create(infUrl ?: "", (infToken ?: "").toCharArray(), infOrg ?: "", infBucket ?: "")
+
+    override suspend fun influxPing() = with(createInflux()) {
+        getWriteKotlinApi().writeRecord("ping host=\"${Build.MODEL}\"", WritePrecision.MS)
+    }
 }
 
 inline fun <reified T : Activity> Context.act() = startActivity(Intent(this, T::class.java))

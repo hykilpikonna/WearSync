@@ -32,11 +32,6 @@
             app:title="@string/pref_influx_test"
             app:summary="@string/pref_influx_test_sub" />
 
-        <Preference
-            android:key="infTest2Button"
-            app:title="@string/pref_influx_test2"
-            app:summary="@string/pref_influx_test2_sub" />
-
     </PreferenceCategory>
 
 </PreferenceScreen>

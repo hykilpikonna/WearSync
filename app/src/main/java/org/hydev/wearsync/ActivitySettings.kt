@@ -1,11 +1,9 @@
 package org.hydev.wearsync
 
-import android.os.Build.MODEL
 import android.os.Bundle
 import androidx.appcompat.app.AppCompatActivity
 import androidx.preference.Preference
 import androidx.preference.PreferenceFragmentCompat
-import com.influxdb.client.domain.WritePrecision
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
@@ -39,24 +37,7 @@ class ActivitySettings : AppCompatActivity()
             findPreference<Preference>("infTestButton")!!.setOnPreferenceClickListener {
                 scope.launch {
                     try {
-                        val ver = act.prefs.createInflux().version()
-                        println("Success, version is $ver")
-                        view?.snack("Success, version is $ver")
-                    }
-                    catch (e: Exception) {
-                        e.printStackTrace()
-                        view?.snack("Error: ${e.message}")
-                    }
-                }
-                true
-            }
-
-            findPreference<Preference>("infTest2Button")!!.setOnPreferenceClickListener {
-                scope.launch {
-                    try {
-                        with(act.prefs.createInflux()) {
-                            getWriteKotlinApi().writeRecord("ping host=\"$MODEL\"", WritePrecision.MS)
-                        }
+                        act.prefs.influxPing()
                         println("Success!")
                         view?.snack("Success!")
                     }
