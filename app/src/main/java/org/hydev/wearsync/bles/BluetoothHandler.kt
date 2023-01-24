@@ -32,19 +32,6 @@ internal class BluetoothHandler private constructor(context: Context) {
                 Timber.i("Received: ${peripheral.read(ModelDecoder())}")
                 Timber.i("Battery level: ${peripheral.read(BatteryDecoder())}")
 
-                // Write Current Time if possible
-                peripheral.getCharacteristic(CTS_SERVICE_UUID, CURRENT_TIME_CHARACTERISTIC_UUID)?.let {
-                    // If it has the write property we write the current time
-                    if (it.supportsWritingWithResponse()) {
-                        // Write the current time unless it is an Omron device
-                        if (!peripheral.name.contains("BLEsmart_", true)) {
-                            val parser = BluetoothBytesParser(ByteOrder.LITTLE_ENDIAN)
-                            parser.setCurrentTime(Calendar.getInstance())
-                            peripheral.writeCharacteristic(it, parser.value, WriteType.WITH_RESPONSE)
-                        }
-                    }
-                }
-
                 peripheral.setupNotification(batteryChannel, BatteryDecoder())
                 peripheral.setupNotification(heartRateChannel, HeartRateDecoder())
                 peripheral.setupNotification(temperatureChannel, TemperatureDecoder())
@@ -80,34 +67,6 @@ internal class BluetoothHandler private constructor(context: Context) {
         parser.setIntValue(calendar[Calendar.SECOND], BluetoothBytesParser.FORMAT_UINT8)
         parser.setIntValue(offsetInMinutes, BluetoothBytesParser.FORMAT_SINT16)
         peripheral.writeCharacteristic(CONTOUR_SERVICE_UUID, CONTOUR_CLOCK, parser.value, WriteType.WITH_RESPONSE)
-    }
-
-    private suspend fun setupCTSnotifications(peripheral: BluetoothPeripheral) {
-        peripheral.getCharacteristic(CTS_SERVICE_UUID, CURRENT_TIME_CHARACTERISTIC_UUID)?.let { currentTimeCharacteristic ->
-            peripheral.observe(currentTimeCharacteristic) { value ->
-                val parser = BluetoothBytesParser(value)
-                val currentTime = parser.dateTime
-                Timber.i("Received device time: %s", currentTime)
-
-                // Deal with Omron devices where we can only write currentTime under specific conditions
-                val name = peripheral.name
-                if (name.contains("BLEsmart_", true)) {
-                    peripheral.getCharacteristic(BLP_SERVICE_UUID, BLP_MEASUREMENT_CHARACTERISTIC_UUID)?.let {
-                        val isNotifying = peripheral.isNotifying(it)
-                        if (isNotifying) currentTimeCounter++
-
-                        // We can set device time for Omron devices only if it is the first notification and currentTime is more than 10 min from now
-                        val interval = Math.abs(Calendar.getInstance().timeInMillis - currentTime.time)
-                        if (currentTimeCounter == 1 && interval > 10 * 60 * 1000) {
-                            parser.setCurrentTime(Calendar.getInstance())
-                            scope.launch {
-                                peripheral.writeCharacteristic(it, parser.value, WriteType.WITH_RESPONSE)
-                            }
-                        }
-                    }
-                }
-            }
-        }
     }
 
     private suspend fun setupGLXnotifications(peripheral: BluetoothPeripheral) {
@@ -171,14 +130,6 @@ internal class BluetoothHandler private constructor(context: Context) {
     }
 
     companion object {
-        // UUIDs for the Blood Pressure service (BLP)
-        val BLP_SERVICE_UUID = UUID.fromString("00001810-0000-1000-8000-00805f9b34fb")
-        val BLP_MEASUREMENT_CHARACTERISTIC_UUID = UUID.fromString("00002A35-0000-1000-8000-00805f9b34fb")
-
-        // UUIDs for the Current Time service (CTS)
-        val CTS_SERVICE_UUID = UUID.fromString("00001805-0000-1000-8000-00805f9b34fb")
-        val CURRENT_TIME_CHARACTERISTIC_UUID = UUID.fromString("00002A2B-0000-1000-8000-00805f9b34fb")
-
         val GLUCOSE_SERVICE_UUID = UUID.fromString("00001808-0000-1000-8000-00805f9b34fb")
         val GLUCOSE_RECORD_ACCESS_POINT_CHARACTERISTIC_UUID = UUID.fromString("00002A52-0000-1000-8000-00805f9b34fb")
 
