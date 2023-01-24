@@ -60,10 +60,11 @@ class MyService : Service()
 
     private fun add(it: Any) = scope.launch {
         runCatching {
-            Timber.d("+${it.javaClass.simpleName}")
+            val clas = it.javaClass.simpleName
+            Timber.d("+$clas")
             influx add it
 
-            notif(text = "Recorded ${count.addAndGet(1)} events!")
+            notif(text = "Recorded ${count.addAndGet(1)} events!\n+$clas")
         }.orTrace()
     }
 
