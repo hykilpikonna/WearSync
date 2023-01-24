@@ -20,6 +20,7 @@ import org.hydev.wearsync.bles.decoders.HeartRateDecoder
 import org.hydev.wearsync.bles.decoders.IDecoder
 import timber.log.Timber
 import java.util.concurrent.atomic.AtomicLong
+import java.util.concurrent.atomic.AtomicReference
 
 
 class MyService : Service()
@@ -40,9 +41,12 @@ class MyService : Service()
     fun init()
     {
         influx = prefs.createInflux()
-        startCollect()
-        registerReceiver(mBatInfoReceiver, IntentFilter(Intent.ACTION_BATTERY_CHANGED))
+        ble.connectAddress(prefs.chosenDevice ?: return notif(text = "❌ No bluetooth devices chosen")) {
+            startCollect()
+            notif(sub = "Bluetooth Connected!")
 
+            registerReceiver(mBatInfoReceiver, IntentFilter(Intent.ACTION_BATTERY_CHANGED))
+        }
         notif(sub = "Bluetooth Connecting...")
     }
 
