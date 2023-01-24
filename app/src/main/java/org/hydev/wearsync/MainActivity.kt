@@ -119,6 +119,7 @@ class MainActivity : AppCompatActivity()
                 withContext(Dispatchers.Main) {
                     binding.content.tvValue.text = String.format(Locale.ENGLISH, "%d bpm", it.pulse)
                 }
+                influx add it
             }
         }
     }

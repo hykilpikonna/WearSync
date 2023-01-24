@@ -1,18 +1,26 @@
 package org.hydev.wearsync.bles.decoders
 
+import com.influxdb.annotations.Column
+import com.influxdb.annotations.Measurement
 import com.welie.blessed.BluetoothBytesParser
 import com.welie.blessed.BluetoothBytesParser.Companion.FORMAT_UINT16
 import com.welie.blessed.BluetoothBytesParser.Companion.FORMAT_UINT8
 import org.hydev.wearsync.bles.SensorContactFeature
 import java.nio.ByteOrder
+import java.time.Instant
 import java.util.*
 
+@Measurement(name = "heart_rate")
 data class HeartRateMeasurement(
+    @Column
     val pulse: Int,
+
     val energyExpended: Int?,
     val rrIntervals: IntArray,
     val sensorContactStatus: SensorContactFeature,
-    val createdAt: Date = Calendar.getInstance().time
+
+    @Column(timestamp = true)
+    val createdAt: Instant = Instant.now(),
 )
 
 class HeartRateDecoder : IDecoder<HeartRateMeasurement>
