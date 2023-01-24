@@ -8,8 +8,7 @@ import android.view.Menu
 import android.view.MenuItem
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.appcompat.app.AppCompatActivity
-import com.influxdb.client.domain.WritePrecision
-import com.influxdb.client.kotlin.InfluxDBClientKotlinFactory
+import com.influxdb.client.kotlin.InfluxDBClientKotlin
 import kotlinx.coroutines.*
 import kotlinx.coroutines.flow.consumeAsFlow
 import org.hydev.wearsync.ActivityPermissions.Companion.hasPermissions
@@ -24,6 +23,7 @@ import java.util.*
 class MainActivity : AppCompatActivity()
 {
     lateinit var binding: ActivityMainBinding
+    lateinit var influx: InfluxDBClientKotlin
 
     val enableBluetoothRequest = registerForActivityResult(ActivityResultContracts.StartActivityForResult()) {
         if (it.resultCode != RESULT_OK) ensureBluetooth()
@@ -43,12 +43,32 @@ class MainActivity : AppCompatActivity()
         setContentView(binding.root)
         setSupportActionBar(binding.toolbar)
 
-        if (!hasPermissions()) act<ActivityPermissions>()
+        if (!hasPermissions()) permissionCallback.launch(intent<ActivityPermissions>())
+        else afterPermissions()
+    }
+
+    val permissionCallback = actCallback { afterPermissions() }
+    fun afterPermissions() {
+        scope.launch {
+            // Open settings if influx database is inaccessible
+            if (runCatching { prefs.influxPing() }.isFailure) settingsCallback.launch(intent<ActivitySettings>())
+            else afterSettings()
+        }
+    }
+
+    val settingsCallback = actCallback { afterSettings() }
+    fun afterSettings() {
+        // Create client
+        influx = prefs.createInflux()
 
         // Scan for devices
-        act<ActivityScan>()
-        binding.content.tvDevice.text = "Configured Device: $chosenDevice"
+        connectCallback.launch(intent<ActivityScan>())
+    }
 
+    val connectCallback = actCallback {
+        // Start collection
+        binding.content.tvDevice.text = "Configured Device: ${prefs.chosenDevice}"
+        binding.content.tvValue.text = "Service started!"
         startCollect()
     }
 
