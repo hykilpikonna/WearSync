@@ -29,11 +29,25 @@ class ActivitySettings : AppCompatActivity()
 
     class SettingsFragment : PreferenceFragmentCompat()
     {
+        val scope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
+        val act by lazy { requireActivity() }
+
         override fun onCreatePreferences(savedInstanceState: Bundle?, rootKey: String?)
         {
             setPreferencesFromResource(R.xml.root_preferences, rootKey)
 
             findPreference<Preference>("infTestButton")!!.setOnPreferenceClickListener {
+                scope.launch {
+                    try {
+                        val ver = act.prefs.createInflux().version()
+                        println("Success, version is $ver")
+                        view?.snack("Success, version is $ver")
+                    }
+                    catch (e: Exception) {
+                        e.printStackTrace()
+                        view?.snack("Error: ${e.message}")
+                    }
+                }
                 println("Clicked")
                 true
             }
