@@ -6,12 +6,18 @@ import android.content.Context
 import android.content.Intent
 import android.os.Build
 import android.view.View
+import androidx.activity.ComponentActivity
+import androidx.activity.result.ActivityResult
+import androidx.activity.result.ActivityResultCallback
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.core.content.edit
 import androidx.preference.PreferenceManager
 import com.google.android.material.snackbar.Snackbar
 import com.influxdb.client.domain.WritePrecision
 import com.influxdb.client.kotlin.InfluxDBClientKotlin
 import com.influxdb.client.kotlin.InfluxDBClientKotlinFactory
+import kotlin.coroutines.resume
+import kotlin.coroutines.suspendCoroutine
 import kotlin.reflect.KProperty
 
 
@@ -59,3 +65,14 @@ val Context.prefs get() = object : Prefs {
 }
 
 inline fun <reified T : Activity> Context.act() = startActivity(Intent(this, T::class.java))
+inline fun <reified T : Activity> ComponentActivity.act(callback: ActivityResultCallback<ActivityResult>) {
+    registerForActivityResult(ActivityResultContracts.StartActivityForResult(), callback)
+        .launch(Intent(this, T::class.java))
+}
+suspend inline fun <reified T : Activity> ComponentActivity.actSus() {
+    suspendCoroutine { cont ->
+        act<T> {
+            cont.resume(true)
+        }
+    }
+}
