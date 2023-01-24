@@ -25,6 +25,8 @@ class MainActivity : AppCompatActivity()
     lateinit var binding: ActivityMainBinding
     lateinit var influx: InfluxDBClientKotlin
 
+    var log = true
+
     val enableBluetoothRequest = registerForActivityResult(ActivityResultContracts.StartActivityForResult()) {
         if (it.resultCode != RESULT_OK) ensureBluetooth()
     }
@@ -109,6 +111,10 @@ class MainActivity : AppCompatActivity()
                 act<ActivityScan>()
                 true
             }
+            R.id.action_stop_logging -> {
+                log = false
+                true
+            }
             else -> super.onOptionsItemSelected(item)
         }
     }
@@ -143,6 +149,7 @@ class MainActivity : AppCompatActivity()
 
     @SuppressLint("NotifyDataSetChanged")
     fun addRecord(t: Any) {
+        if (!log) return
         while (records.size > 20) records.remove(0)
         records.add(t)
         runOnUiThread { binding.content.recycler.adapter?.notifyDataSetChanged() }

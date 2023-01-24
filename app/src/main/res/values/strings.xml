@@ -2,6 +2,7 @@
     <string name="app_name">WearSync</string>
     <string name="action_settings">Settings</string>
     <string name="action_scan">Scan for Devices</string>
+    <string name="action_stop_logging">Stop Logging on Display</string>
 
     <!-- Preference Titles -->
     <string name="pref_influx_head">InfluxDB Settings</string>
