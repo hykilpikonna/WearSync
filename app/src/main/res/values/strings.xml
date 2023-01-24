@@ -9,6 +9,8 @@
     <string name="pref_influx_org">Organization</string>
     <string name="pref_influx_bucket">Bucket</string>
     <string name="pref_influx_token">Token</string>
-    <string name="pref_influx_test">Test connection</string>
-    <string name="pref_influx_test_sub">Click here to test your connection to the influxdb server.</string>
+    <string name="pref_influx_test">Test Connection</string>
+    <string name="pref_influx_test_sub">Test your connection to the influxdb server.</string>
+    <string name="pref_influx_test2">Test Authentication</string>
+    <string name="pref_influx_test2_sub">Test if your token has permissions.</string>
 </resources>
