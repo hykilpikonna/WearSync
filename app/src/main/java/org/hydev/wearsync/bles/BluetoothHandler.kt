@@ -13,7 +13,7 @@ import java.util.*
 
 internal class BluetoothHandler private constructor(context: Context) {
     private var currentTimeCounter = 0
-    val batteryChannel = Channel<UInt>(UNLIMITED)
+    val batteryChannel = Channel<BatteryMeasurement>(UNLIMITED)
     val heartRateChannel = Channel<HeartRateMeasurement>(UNLIMITED)
     val bloodPressureChannel = Channel<BloodPressureMeasurement>(UNLIMITED)
     val glucoseChannel = Channel<GlucoseMeasurement>(UNLIMITED)
