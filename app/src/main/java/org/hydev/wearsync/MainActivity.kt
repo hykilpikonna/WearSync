@@ -1,6 +1,8 @@
 package org.hydev.wearsync
 
 import android.annotation.SuppressLint
+import android.app.NotificationChannel
+import android.app.NotificationManager
 import android.bluetooth.BluetoothAdapter
 import android.content.Intent
 import android.graphics.Color
@@ -13,15 +15,18 @@ import androidx.recyclerview.widget.LinearLayoutManager
 import androidx.recyclerview.widget.RecyclerView
 import com.influxdb.client.kotlin.InfluxDBClientKotlin
 import kotlinx.coroutines.*
-import kotlinx.coroutines.channels.Channel
-import kotlinx.coroutines.flow.consumeAsFlow
 import org.hydev.wearsync.ActivityPermissions.Companion.hasPermissions
-import org.hydev.wearsync.bles.BluetoothHandler.Companion.ble
 import org.hydev.wearsync.databinding.ActivityMainBinding
 import java.util.*
 
 class MainActivity : AppCompatActivity()
 {
+    companion object {
+        var instance: MainActivity? = null
+    }
+
+    private val scope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
+
     lateinit var binding: ActivityMainBinding
     lateinit var influx: InfluxDBClientKotlin
 
@@ -41,14 +46,23 @@ class MainActivity : AppCompatActivity()
     {
         super.onCreate(savedInstanceState)
 
+        // Bind activity
         binding = ActivityMainBinding.inflate(layoutInflater)
         setContentView(binding.root)
         setSupportActionBar(binding.toolbar)
 
+        // Create recycler
         binding.content.recycler.let {
             it.adapter = RecordAdapter(records)
             it.layoutManager = LinearLayoutManager(this)
         }
+
+        // Create notification channel
+        val chan = NotificationChannel(MyService.NOTIF_CHANNEL_ID, "Keep-alive Notification",
+            NotificationManager.IMPORTANCE_MIN)
+        getSysServ<NotificationManager>().createNotificationChannel(chan)
+
+        instance = this
 
         if (!hasPermissions()) permissionCallback.launch(intent<ActivityPermissions>())
         else afterPermissions()
@@ -83,7 +97,7 @@ class MainActivity : AppCompatActivity()
         binding.content.tvDevice.text = "Configured Device: ${prefs.chosenDevice}"
         binding.content.tvValue.text = "Service started!"
 
-        startCollect()
+        act<MyService>()
     }
 
     override fun onResume()
@@ -119,7 +133,6 @@ class MainActivity : AppCompatActivity()
         }
     }
 
-    private val scope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
     private val records = ArrayList<Any>()
 
     class RecordAdapter(val records: List<Any>) : RecyclerView.Adapter<RecordAdapter.ViewHolder>() {
@@ -153,25 +166,5 @@ class MainActivity : AppCompatActivity()
         while (records.size > 20) records.remove(0)
         records.add(t)
         runOnUiThread { binding.content.recycler.adapter?.notifyDataSetChanged() }
-    }
-
-    fun startCollect()
-    {
-        collect(ble.heartRateChannel)
-        collect(ble.batteryChannel)
-    }
-
-    private fun <T : Any> collect(channel: Channel<T>) {
-        scope.launch {
-            channel.consumeAsFlow().collect {
-                try {
-                    addRecord(it)
-                    influx add it
-                }
-                catch (e: Exception) {
-                    addRecord(e)
-                }
-            }
-        }
     }
 }

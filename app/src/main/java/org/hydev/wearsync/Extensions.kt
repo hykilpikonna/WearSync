@@ -1,6 +1,7 @@
 package org.hydev.wearsync
 
 import android.app.Activity
+import android.app.Service
 import android.bluetooth.BluetoothManager
 import android.content.Context
 import android.content.Intent
@@ -17,6 +18,7 @@ import com.influxdb.client.domain.WritePrecision
 import com.influxdb.client.kotlin.InfluxDBClientKotlin
 import com.influxdb.client.kotlin.InfluxDBClientKotlinFactory
 import kotlin.reflect.KProperty
+import kotlin.reflect.full.isSubclassOf
 
 
 fun View.snack(msg: String) = Snackbar.make(this, msg, Snackbar.LENGTH_LONG)
@@ -62,8 +64,15 @@ val Context.prefs get() = object : Prefs {
     }
 }
 
-inline fun <reified T : Activity> Context.intent() = Intent(this, T::class.java)
-inline fun <reified T : Activity> Context.act() = startActivity(intent<T>())
+inline fun <reified T> Context.intent() = Intent(this, T::class.java)
+inline fun <reified T> Context.act()
+{
+    if (T::class.isSubclassOf(Activity::class))
+        startActivity(intent<T>())
+    else if (T::class.isSubclassOf(Service::class))
+        startService(intent<T>())
+    else TODO("Unimplemented: ${T::class}")
+}
 fun ComponentActivity.actCallback(fn: ActivityResultCallback<ActivityResult>) =
     registerForActivityResult(ActivityResultContracts.StartActivityForResult(), fn)
 
