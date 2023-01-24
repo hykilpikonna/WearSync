@@ -6,6 +6,10 @@ import android.content.Context
 import android.content.Intent
 import android.os.Build
 import android.view.View
+import androidx.activity.ComponentActivity
+import androidx.activity.result.ActivityResult
+import androidx.activity.result.ActivityResultCallback
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.core.content.edit
 import androidx.preference.PreferenceManager
 import com.google.android.material.snackbar.Snackbar
@@ -58,4 +62,9 @@ val Context.prefs get() = object : Prefs {
     }
 }
 
-inline fun <reified T : Activity> Context.act() = startActivity(Intent(this, T::class.java))
+inline fun <reified T : Activity> Context.intent() = Intent(this, T::class.java)
+inline fun <reified T : Activity> Context.act() = startActivity(intent<T>())
+fun ComponentActivity.actCallback(fn: ActivityResultCallback<ActivityResult>) =
+    registerForActivityResult(ActivityResultContracts.StartActivityForResult(), fn)
+
+suspend infix fun <T> InfluxDBClientKotlin.add(meas: T) = getWriteKotlinApi().writeMeasurement(meas, WritePrecision.MS)
