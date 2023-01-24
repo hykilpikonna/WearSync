@@ -86,6 +86,7 @@ class ActivityScan : AppCompatActivity() {
     {
         view.snack("✅ Connected.")
         prefs.chosenDevice = address
+        ble.close()
         finish()
     }
 }

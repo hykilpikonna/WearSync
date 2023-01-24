@@ -78,6 +78,11 @@ internal class BluetoothHandler private constructor(context: Context) {
         }
     }
 
+    fun close() {
+        central.close()
+        instance = null
+    }
+
     companion object {
         val decoders = listOf(BatteryDecoder(), BloodPressureDecoder(), GlucoseDecoder(), HeartRateDecoder(),
             PLXSpotDecoder(), PLXContinuousDecoder(), TemperatureDecoder(), WeightDecoder())
