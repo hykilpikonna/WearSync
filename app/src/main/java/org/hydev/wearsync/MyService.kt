@@ -18,7 +18,6 @@ import org.hydev.wearsync.bles.BluetoothHandler.Companion.ble
 import org.hydev.wearsync.bles.decoders.BatteryDecoder
 import org.hydev.wearsync.bles.decoders.HeartRateDecoder
 import org.hydev.wearsync.bles.decoders.IDecoder
-import timber.log.Timber
 
 
 class MyService : Service()
@@ -36,7 +35,7 @@ class MyService : Service()
 
         registerReceiver(mBatInfoReceiver, IntentFilter(Intent.ACTION_BATTERY_CHANGED))
 
-        startForeground()
+        startForeground(NOTIF_ID, "Just started!".toNotif())
         return super.onStartCommand(intent, flags, startId)
     }
 
@@ -46,39 +45,29 @@ class MyService : Service()
         observe<HeartRateDecoder>()
     }
 
-    private inline fun <reified T : IDecoder<out Any>> observe() {
-        ble.observeAny<T> {
-            scope.launch {
-                runCatching {
-                    println("Adding ${it.javaClass.simpleName} to influxdb")
-                    influx add it
-                }.orTrace()
-            }
-        }
+    private inline fun <reified T : IDecoder<out Any>> observe() = ble.observeAny<T> { add(it) }
+
+    private fun add(it: Any) = scope.launch {
+        runCatching {
+            println("Adding ${it.javaClass.simpleName} to influxdb")
+            influx add it
+        }.orTrace()
     }
 
-    private val mBatInfoReceiver: BroadcastReceiver = object : BroadcastReceiver()
-    {
-        override fun onReceive(ctxt: Context, intent: Intent) {
-            val bi = intent.batteryInfo(bm)
-            Timber.d("Battery info recorded: $bi")
-            scope.launch { runCatching { influx add bi }.orTrace() }
-        }
+    private val mBatInfoReceiver = object : BroadcastReceiver() {
+        override fun onReceive(ctxt: Context, intent: Intent) { add(intent.batteryInfo(bm)) }
     }
 
-    private fun startForeground()
-    {
-        val notificationIntent = Intent(this, MainActivity::class.java)
-        val pendingIntent = PendingIntent.getActivity(this, 0,
-            notificationIntent, PendingIntent.FLAG_IMMUTABLE or PendingIntent.FLAG_UPDATE_CURRENT)
-        startForeground(NOTIF_ID, NotificationCompat.Builder(this, NOTIF_CHANNEL_ID)
-                .setOngoing(true)
-                .setSmallIcon(R.drawable.ic_watch_24)
-                .setContentTitle("🐱 Running!")
-                .setContentIntent(pendingIntent)
-                .build()
-        )
-    }
+    private val intent = PendingIntent.getActivity(this, 0, intent<MainActivity>(),
+        PendingIntent.FLAG_IMMUTABLE or PendingIntent.FLAG_UPDATE_CURRENT)
+
+    private fun String.toNotif() = NotificationCompat.Builder(this@MyService, NOTIF_CHANNEL_ID)
+        .setSmallIcon(R.drawable.ic_watch_24)
+        .setContentIntent(intent)
+        .setContentTitle("🐱 Running!")
+        .setOngoing(true)
+        .setSubText(this)
+        .build()
 
     companion object
     {
