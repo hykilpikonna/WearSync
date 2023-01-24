@@ -1,34 +1,36 @@
-<PreferenceScreen xmlns:app="http://schemas.android.com/apk/res-auto">
+<PreferenceScreen xmlns:app="http://schemas.android.com/apk/res-auto"
+    xmlns:android="http://schemas.android.com/apk/res/android">
 
-    <PreferenceCategory app:title="@string/messages_header">
+    <PreferenceCategory app:title="@string/pref_influx_head">
 
         <EditTextPreference
-            app:key="signature"
-            app:title="@string/signature_title"
+            app:defaultValue="https://influx.hydev.org"
+            app:key="infUrl"
+            app:title="@string/pref_influx_url"
             app:useSimpleSummaryProvider="true" />
 
-        <ListPreference
-            app:defaultValue="reply"
-            app:entries="@array/reply_entries"
-            app:entryValues="@array/reply_values"
-            app:key="reply"
-            app:title="@string/reply_title"
-            app:useSimpleSummaryProvider="true" />
+        <EditTextPreference
+            app:key="infOrg"
+            app:title="@string/pref_influx_org"
+            app:useSimpleSummaryProvider="true"
+            android:defaultValue="hydev" />
 
-    </PreferenceCategory>
+        <EditTextPreference
+            app:key="infBucket"
+            app:title="@string/pref_influx_bucket"
+            app:useSimpleSummaryProvider="true"
+            android:defaultValue="hydev" />
 
-    <PreferenceCategory app:title="@string/sync_header">
+        <EditTextPreference
+            app:key="infToken"
+            app:title="@string/pref_influx_token"
+            app:useSimpleSummaryProvider="true"
+            android:inputType="textPassword" />
 
-        <SwitchPreferenceCompat
-            app:key="sync"
-            app:title="@string/sync_title" />
-
-        <SwitchPreferenceCompat
-            app:dependency="sync"
-            app:key="attachment"
-            app:summaryOff="@string/attachment_summary_off"
-            app:summaryOn="@string/attachment_summary_on"
-            app:title="@string/attachment_title" />
+        <Preference
+            android:key="infTestButton"
+            app:title="@string/pref_influx_test"
+            app:summary="@string/pref_influx_test_sub" />
 
     </PreferenceCategory>
 
