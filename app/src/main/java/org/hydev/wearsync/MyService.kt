@@ -2,7 +2,10 @@ package org.hydev.wearsync
 
 import android.app.PendingIntent
 import android.app.Service
+import android.content.BroadcastReceiver
+import android.content.Context
 import android.content.Intent
+import android.content.IntentFilter
 import androidx.core.app.NotificationCompat
 import com.influxdb.client.kotlin.InfluxDBClientKotlin
 import kotlinx.coroutines.CoroutineScope
@@ -11,7 +14,10 @@ import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.flow.consumeAsFlow
 import kotlinx.coroutines.launch
+import org.hydev.wearsync.BatteryInfo.Companion.batteryInfo
 import org.hydev.wearsync.bles.BluetoothHandler.Companion.ble
+import timber.log.Timber
+
 
 class MyService : Service()
 {
@@ -24,6 +30,8 @@ class MyService : Service()
     {
         influx = prefs.createInflux()
         startCollect()
+
+        registerReceiver(mBatInfoReceiver, IntentFilter(Intent.ACTION_BATTERY_CHANGED))
 
         startForeground()
         return super.onStartCommand(intent, flags, startId)
@@ -46,6 +54,15 @@ class MyService : Service()
                     MainActivity.instance?.addRecord(e)
                 }
             }
+        }
+    }
+
+    private val mBatInfoReceiver: BroadcastReceiver = object : BroadcastReceiver()
+    {
+        override fun onReceive(ctxt: Context, intent: Intent) {
+            val bi = intent.batteryInfo()
+            Timber.d("Battery info recorded: $bi")
+            scope.launch { influx add bi }
         }
     }
 
