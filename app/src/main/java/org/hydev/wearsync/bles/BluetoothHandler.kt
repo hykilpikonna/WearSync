@@ -9,7 +9,6 @@ import org.hydev.wearsync.BluePeri
 import org.hydev.wearsync.bles.decoders.*
 import timber.log.Timber
 import timber.log.Timber.DebugTree
-import java.nio.ByteOrder
 import java.util.*
 
 internal class BluetoothHandler private constructor(context: Context) {
@@ -25,50 +24,30 @@ internal class BluetoothHandler private constructor(context: Context) {
     val temperatureChannel = Channel<TemperatureMeasurement>(UNLIMITED)
     val weightChannel = Channel<WeightMeasurement>(UNLIMITED)
 
-    private fun handlePeripheral(peripheral: BluePeri) {
+    private fun BluePeri.handle() {
         scope.launch {
             try {
-                Timber.i("MTU is ${peripheral.requestMtu(185)}")
-                peripheral.requestConnectionPriority(ConnectionPriority.HIGH)
-                Timber.i("RSSI is ${peripheral.readRemoteRssi()}")
-                Timber.i("Received: ${peripheral.read(ManufacturerDecoder())}")
-                Timber.i("Received: ${peripheral.read(ModelDecoder())}")
-                Timber.i("Battery level: ${peripheral.read(BatteryDecoder())}")
+                Timber.i("MTU is ${requestMtu(185)}")
+                requestConnectionPriority(ConnectionPriority.HIGH)
+                Timber.i("RSSI is ${readRemoteRssi()}")
+                Timber.i("Received: ${read(ManufacturerDecoder())}")
+                Timber.i("Received: ${read(ModelDecoder())}")
+                Timber.i("Battery level: ${read(BatteryDecoder())}")
 
-                peripheral.observe(batteryChannel, BatteryDecoder())
-                peripheral.observe(heartRateChannel, HeartRateDecoder())
-                peripheral.observe(temperatureChannel, TemperatureDecoder())
-                peripheral.observe(weightChannel, WeightDecoder())
-                peripheral.observe(bloodPressureChannel, BloodPressureDecoder())
-                peripheral.observe(pulseOxSpotChannel, PLXSpotDecoder())
-                peripheral.observe(pulseOxContinuousChannel, PLXContinuousDecoder())
-                setupGLXnotifications(peripheral)
-
-                peripheral.getCharacteristic(CONTOUR_SERVICE_UUID, CONTOUR_CLOCK)?.let {
-                    writeContourClock(peripheral)
-                }
+                observe(batteryChannel, BatteryDecoder())
+                observe(heartRateChannel, HeartRateDecoder())
+                observe(temperatureChannel, TemperatureDecoder())
+                observe(weightChannel, WeightDecoder())
+                observe(bloodPressureChannel, BloodPressureDecoder())
+                observe(pulseOxSpotChannel, PLXSpotDecoder())
+                observe(pulseOxContinuousChannel, PLXContinuousDecoder())
+                setupGLXnotifications(this@handle)
             } catch (e: IllegalArgumentException) {
                 Timber.e(e)
             } catch (b: GattException) {
                 Timber.e(b)
             }
         }
-    }
-
-    private suspend fun writeContourClock(peripheral: BluePeri) {
-        val calendar = Calendar.getInstance()
-        val offsetInMinutes = calendar.timeZone.rawOffset / 60000
-        calendar.timeZone = TimeZone.getTimeZone("UTC")
-        val parser = BluetoothBytesParser(ByteOrder.LITTLE_ENDIAN)
-        parser.setIntValue(1, BluetoothBytesParser.FORMAT_UINT8)
-        parser.setIntValue(calendar[Calendar.YEAR], BluetoothBytesParser.FORMAT_UINT16)
-        parser.setIntValue(calendar[Calendar.MONTH] + 1, BluetoothBytesParser.FORMAT_UINT8)
-        parser.setIntValue(calendar[Calendar.DAY_OF_MONTH], BluetoothBytesParser.FORMAT_UINT8)
-        parser.setIntValue(calendar[Calendar.HOUR_OF_DAY], BluetoothBytesParser.FORMAT_UINT8)
-        parser.setIntValue(calendar[Calendar.MINUTE], BluetoothBytesParser.FORMAT_UINT8)
-        parser.setIntValue(calendar[Calendar.SECOND], BluetoothBytesParser.FORMAT_UINT8)
-        parser.setIntValue(offsetInMinutes, BluetoothBytesParser.FORMAT_SINT16)
-        peripheral.writeCharacteristic(CONTOUR_SERVICE_UUID, CONTOUR_CLOCK, parser.value, WriteType.WITH_RESPONSE)
     }
 
     private suspend fun setupGLXnotifications(peripheral: BluePeri) {
@@ -138,10 +117,6 @@ internal class BluetoothHandler private constructor(context: Context) {
         val GLUCOSE_SERVICE_UUID = UUID.fromString("00001808-0000-1000-8000-00805f9b34fb")
         val GLUCOSE_RECORD_ACCESS_POINT_CHARACTERISTIC_UUID = UUID.fromString("00002A52-0000-1000-8000-00805f9b34fb")
 
-        // Contour Glucose Service
-        val CONTOUR_SERVICE_UUID = UUID.fromString("00000000-0002-11E2-9E96-0800200C9A66")
-        val CONTOUR_CLOCK = UUID.fromString("00001026-0002-11E2-9E96-0800200C9A66")
-
         private var instance: BluetoothHandler? = null
         val Context.ble get(): BluetoothHandler {
             if (instance == null) {
@@ -160,7 +135,7 @@ internal class BluetoothHandler private constructor(context: Context) {
         central.observeConnectionState { peripheral, state ->
             Timber.i("Peripheral '${peripheral.name}' is $state")
             when (state) {
-                ConnectionState.CONNECTED -> handlePeripheral(peripheral)
+                ConnectionState.CONNECTED -> peripheral.handle()
                 ConnectionState.DISCONNECTED -> scope.launch {
                     delay(15000)
 
