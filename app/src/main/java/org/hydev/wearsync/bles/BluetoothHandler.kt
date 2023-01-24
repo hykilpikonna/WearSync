@@ -33,9 +33,13 @@ internal class BluetoothHandler private constructor(context: Context) {
     val listeners = HashMap<KClass<*>, MutableList<(Any) -> Unit>>()
 
     @Suppress("UNCHECKED_CAST")
-    inline fun <M : Any, reified D : IDecoder<M>> observe(crossinline cb: (M) -> Unit) {
+    inline fun <M : Any, reified D : IDecoder<out M>> observe(crossinline cb: (M) -> Unit) {
         (listeners[D::class] ?: error("Cannot observe unknown decoder class ${D::class}"))
             .add { cb(it as M) }
+    }
+
+    inline fun <reified D : IDecoder<out Any>> observeAny(noinline cb: (Any) -> Unit) {
+        (listeners[D::class] ?: error("Cannot observe unknown decoder class ${D::class}")).add(cb)
     }
 
     private suspend fun <T : Any> BluePeri.observe(dec: IDecoder<T>) {

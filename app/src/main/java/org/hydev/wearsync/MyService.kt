@@ -12,11 +12,12 @@ import com.influxdb.client.kotlin.InfluxDBClientKotlin
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
-import kotlinx.coroutines.channels.Channel
-import kotlinx.coroutines.flow.consumeAsFlow
 import kotlinx.coroutines.launch
 import org.hydev.wearsync.BatteryInfo.Companion.batteryInfo
 import org.hydev.wearsync.bles.BluetoothHandler.Companion.ble
+import org.hydev.wearsync.bles.decoders.BatteryDecoder
+import org.hydev.wearsync.bles.decoders.HeartRateDecoder
+import org.hydev.wearsync.bles.decoders.IDecoder
 import timber.log.Timber
 
 
@@ -41,13 +42,13 @@ class MyService : Service()
 
     fun startCollect()
     {
-        collect(ble.heartRateChannel)
-        collect(ble.batteryChannel)
+        observe<BatteryDecoder>()
+        observe<HeartRateDecoder>()
     }
 
-    private fun <T : Any> collect(channel: Channel<T>) {
-        scope.launch {
-            channel.consumeAsFlow().collect {
+    private inline fun <reified T : IDecoder<out Any>> observe() {
+        ble.observeAny<T> {
+            scope.launch {
                 try {
                     println("Adding ${it.javaClass.simpleName} to influxdb")
                     influx add it
