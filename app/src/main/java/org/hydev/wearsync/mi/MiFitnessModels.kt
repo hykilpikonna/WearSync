@@ -2,8 +2,8 @@
 
 package org.hydev.wearsync.mi
 
+import org.hydev.wearsync.reflectToString
 import org.jetbrains.exposed.sql.Table
-import java.lang.reflect.Modifier
 import java.util.*
 
 object SleepSegment : Table("sleep_segment") {
