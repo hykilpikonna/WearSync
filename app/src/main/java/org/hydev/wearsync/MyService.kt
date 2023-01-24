@@ -33,12 +33,17 @@ class MyService : Service()
     override fun onBind(intent: Intent?) = null
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int
     {
+        init()
+        return super.onStartCommand(intent, flags, startId)
+    }
+
+    fun init()
+    {
         influx = prefs.createInflux()
         startCollect()
         registerReceiver(mBatInfoReceiver, IntentFilter(Intent.ACTION_BATTERY_CHANGED))
 
-        "Just started!".notif()
-        return super.onStartCommand(intent, flags, startId)
+        notif(sub = "Bluetooth Connecting...")
     }
 
     fun startCollect()
@@ -51,10 +56,10 @@ class MyService : Service()
 
     private fun add(it: Any) = scope.launch {
         runCatching {
-            Timber.d("Adding ${it.javaClass.simpleName} to influxdb")
+            Timber.d("+${it.javaClass.simpleName}")
             influx add it
 
-            "Recorded ${count.addAndGet(1)} events!".notif()
+            notif(text = "Recorded ${count.addAndGet(1)} events!")
         }.orTrace()
     }
 
@@ -65,13 +70,16 @@ class MyService : Service()
     private val intent by lazy { PendingIntent.getActivity(this, 0, intent<MainActivity>(),
         PendingIntent.FLAG_IMMUTABLE or PendingIntent.FLAG_UPDATE_CURRENT) }
 
-    private fun String.notif() = startForeground(NOTIF_ID,
-        NotificationCompat.Builder(this@MyService, NOTIF_CHANNEL_ID)
+    private val nSub = AtomicReference<String>()
+    private val nText = AtomicReference<String>()
+    private fun notif(sub: String? = null, text: String? = null) = startForeground(NOTIF_ID,
+        NotificationCompat.Builder(this, NOTIF_CHANNEL_ID)
             .setSmallIcon(R.drawable.ic_watch_24)
             .setContentIntent(intent)
-            .setContentTitle("🐱 Running!")
             .setOngoing(true)
-            .setSubText(this)
+            .setContentTitle("🐱 Running!")
+            .setContentText(text?.also { nText.set(it) } ?: nText.get())
+            .setSubText(sub?.also { nSub.set(it) } ?: nSub.get())
             .build())
 
     companion object
