@@ -7,9 +7,9 @@ import com.influxdb.annotations.Measurement
 
 @Measurement(name = "phone-battery")
 data class BatteryInfo(
-    @Column val percent: Double,
-    @Column val temp: Int,
-    @Column val voltage: Int,
+    @Column val percent: Double, // Percent
+    @Column val temperature: Double, // Celsius
+    @Column val voltage: Double, // Volts
     @Column val status: String?,
     @Column val health: String?,
     @Column val powerSource: String?,
@@ -56,8 +56,8 @@ data class BatteryInfo(
 
             return BatteryInfo(
                 percent = level.toDouble() / scale,
-                temp = temp,
-                voltage = voltage,
+                temperature = temp / 10.0,
+                voltage = voltage / 1000.0,
                 status = statusStr,
                 health = healthStr,
                 powerSource = powerSource
