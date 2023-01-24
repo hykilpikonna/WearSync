@@ -9,18 +9,18 @@ import com.influxdb.annotations.Measurement
 data class BatteryInfo(
     @Column val percent: Double, // Percent
     @Column val temperature: Double, // Celsius
-    @Column val voltage: Double, // Volts
+    @Column val current: Double, // mA
     @Column val status: String?,
     @Column val health: String?,
     @Column val powerSource: String?,
 ) {
     companion object {
-        fun Intent.batteryInfo(): BatteryInfo
+        fun Intent.batteryInfo(bm: BatteryManager): BatteryInfo
         {
             val level = getIntExtra(BatteryManager.EXTRA_LEVEL, -1)
             val scale = getIntExtra(BatteryManager.EXTRA_SCALE, -1)
             val temp = getIntExtra(BatteryManager.EXTRA_TEMPERATURE, -1)
-            val voltage = getIntExtra(BatteryManager.EXTRA_VOLTAGE, -1)
+            val current = bm.getIntProperty(BatteryManager.BATTERY_PROPERTY_CURRENT_NOW)
             val status = getIntExtra(BatteryManager.EXTRA_STATUS, -1)
             val health = getIntExtra(BatteryManager.EXTRA_HEALTH, -1)
             val chargePlug = getIntExtra(BatteryManager.EXTRA_PLUGGED, -1)
@@ -57,7 +57,7 @@ data class BatteryInfo(
             return BatteryInfo(
                 percent = level.toDouble() / scale,
                 temperature = temp / 10.0,
-                voltage = voltage / 1000.0,
+                current = current / 1000.0,
                 status = statusStr,
                 health = healthStr,
                 powerSource = powerSource
