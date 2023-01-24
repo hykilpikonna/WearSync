@@ -6,6 +6,7 @@ import android.content.BroadcastReceiver
 import android.content.Context
 import android.content.Intent
 import android.content.IntentFilter
+import android.os.BatteryManager
 import androidx.core.app.NotificationCompat
 import com.influxdb.client.kotlin.InfluxDBClientKotlin
 import kotlinx.coroutines.CoroutineScope
@@ -22,6 +23,7 @@ import timber.log.Timber
 class MyService : Service()
 {
     private lateinit var influx: InfluxDBClientKotlin
+    private val bm by lazy { getSysServ<BatteryManager>() }
 
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
 
@@ -47,11 +49,11 @@ class MyService : Service()
         scope.launch {
             channel.consumeAsFlow().collect {
                 try {
-                    MainActivity.instance?.addRecord(it)
+                    println("Adding ${it.javaClass.simpleName} to influxdb")
                     influx add it
                 }
                 catch (e: Exception) {
-                    MainActivity.instance?.addRecord(e)
+                    e.printStackTrace()
                 }
             }
         }
@@ -60,7 +62,7 @@ class MyService : Service()
     private val mBatInfoReceiver: BroadcastReceiver = object : BroadcastReceiver()
     {
         override fun onReceive(ctxt: Context, intent: Intent) {
-            val bi = intent.batteryInfo()
+            val bi = intent.batteryInfo(bm)
             Timber.d("Battery info recorded: $bi")
             scope.launch { influx add bi }
         }

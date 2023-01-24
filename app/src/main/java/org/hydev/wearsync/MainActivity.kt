@@ -21,10 +21,6 @@ import java.util.*
 
 class MainActivity : AppCompatActivity()
 {
-    companion object {
-        var instance: MainActivity? = null
-    }
-
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
 
     lateinit var binding: ActivityMainBinding
@@ -61,8 +57,6 @@ class MainActivity : AppCompatActivity()
         val chan = NotificationChannel(MyService.NOTIF_CHANNEL_ID, "Keep-alive Notification",
             NotificationManager.IMPORTANCE_MIN)
         getSysServ<NotificationManager>().createNotificationChannel(chan)
-
-        instance = this
 
         if (!hasPermissions()) permissionCallback.launch(intent<ActivityPermissions>())
         else afterPermissions()
