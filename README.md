@@ -18,6 +18,9 @@ Sync BLE smart watch device data (heart rate, battery, etc.) to an InfluxDB serv
 
 <img src="https://user-images.githubusercontent.com/22280294/214210167-ea070cd1-becb-47db-bc0e-b3709958cf45.png" width="50%"> 
 
+5. If you want you can setup grafana to visualize influxdb data like I did
+
+TODO: Upload grafana sample config
 
 ### Background Service
 
