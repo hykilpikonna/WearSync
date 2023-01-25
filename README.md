@@ -2,9 +2,9 @@
 
 Sync BLE smart watch device data (heart rate, battery, etc.) to an InfluxDB server.
 
-### Demo
+### Demo - [gf.hydev.org](https://gf.hydev.org) 🥰
 
-See my heartbeat 🥰 [gf.hydev.org/heart](https://gf.hydev.org/heart)
+![Screenshot from 2023-01-24 22-53-10](https://user-images.githubusercontent.com/22280294/214479182-c0c5288d-7de3-4e4c-b448-d5b7de75286f.png)
 
 ### Setup
 
