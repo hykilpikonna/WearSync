@@ -98,3 +98,5 @@ fun Any.reflectToString(): String {
     }
     return "{ ${s.joinToString(", ")} }"
 }
+
+val Date.offset get() = toInstant().atOffset(ZoneOffset.UTC)
