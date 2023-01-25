@@ -80,6 +80,11 @@ fun ComponentActivity.actCallback(fn: ActivityResultCallback<ActivityResult>) =
     registerForActivityResult(ActivityResultContracts.StartActivityForResult(), fn)
 
 suspend infix fun <T> InfluxDBClientKotlin.add(meas: T) = getWriteKotlinApi().writeMeasurement(meas, WritePrecision.MS)
+suspend infix fun <T> InfluxDBClientKotlin.add(meas: Iterable<T>) = getWriteKotlinApi().writeMeasurements(meas, WritePrecision.MS)
+suspend infix fun <T> InfluxDBClientKotlin.add(meas: Flow<T>) = getWriteKotlinApi().writeMeasurements(meas, WritePrecision.MS)
+
+fun InfluxDBClient.dropAll(bucket: String, org: String) =
+    deleteApi.delete(DeletePredicateRequest().start(Date(0).offset).stop(Date(5999999999999).offset), bucket, org)
 
 fun Any.reflectToString(): String {
     val s = ArrayList<String>()
