@@ -14,11 +14,19 @@ import androidx.activity.result.contract.ActivityResultContracts
 import androidx.core.content.edit
 import androidx.preference.PreferenceManager
 import com.google.android.material.snackbar.Snackbar
+import com.influxdb.client.InfluxDBClient
+import com.influxdb.client.domain.DeletePredicateRequest
 import com.influxdb.client.domain.WritePrecision
 import com.influxdb.client.kotlin.InfluxDBClientKotlin
 import com.influxdb.client.kotlin.InfluxDBClientKotlinFactory
 import com.welie.blessed.BluetoothPeripheral
+import kotlinx.coroutines.*
+import kotlinx.coroutines.flow.Flow
 import java.lang.reflect.Modifier
+import java.time.ZoneOffset
+import java.util.*
+import kotlin.coroutines.CoroutineContext
+import kotlin.coroutines.EmptyCoroutineContext
 import kotlin.reflect.KProperty
 import kotlin.reflect.full.isSubclassOf
 
@@ -30,6 +38,11 @@ fun View.snack(msg: String) = Snackbar.make(this, msg, Snackbar.LENGTH_LONG)
 inline fun <reified T> Context.getSysServ() = getSystemService(T::class.java) as T
 typealias BluePeri = BluetoothPeripheral
 fun Context.blueMan() = getSysServ<BluetoothManager>()
+
+
+private val gScope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
+fun async(context: CoroutineContext = EmptyCoroutineContext, start: CoroutineStart = CoroutineStart.DEFAULT, block: suspend CoroutineScope.() -> Unit) =
+    gScope.launch(context, start, block)
 
 
 interface Prefs {
