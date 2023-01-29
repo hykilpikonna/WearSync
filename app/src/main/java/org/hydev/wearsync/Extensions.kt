@@ -141,4 +141,21 @@ object GsonExtensions {
     inline fun <reified T> Gson.parse(json: String?) = fromJson<T>(json, object : TypeToken<T>() {}.type)
     inline fun <reified T> String.parseJson() = GSON.parse<T>(this)
 }
+
+object Database {
+    class ColumnNotFound(col: String) : RuntimeException(col)
+
+    fun Cursor.col(name: String) = getColumnIndex(name).also { if (it == -1) throw ColumnNotFound(name) }
+
+    infix fun Cursor.str(name: String) = getStringOrNull(col(name))
+    infix fun Cursor.int(name: String) = getIntOrNull(col(name))
+
+    class CursorIterator(val c: Cursor) : Iterator<Cursor>
+    {
+        override fun hasNext() = !c.isAfterLast
+        override fun next() = c.apply { moveToNext() }
+    }
+
+    val Cursor.iterator get() = CursorIterator(this)
+    val Cursor.seq get() = iterator.asSequence()
 }
