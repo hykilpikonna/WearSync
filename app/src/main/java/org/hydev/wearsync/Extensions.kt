@@ -5,6 +5,7 @@ import android.app.Service
 import android.bluetooth.BluetoothManager
 import android.content.Context
 import android.content.Intent
+import android.database.Cursor
 import android.os.Build
 import android.view.View
 import androidx.activity.ComponentActivity
@@ -12,9 +13,12 @@ import androidx.activity.result.ActivityResult
 import androidx.activity.result.ActivityResultCallback
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.core.content.edit
+import androidx.core.database.getIntOrNull
+import androidx.core.database.getStringOrNull
 import androidx.preference.PreferenceManager
 import com.google.android.material.snackbar.Snackbar
 import com.google.gson.*
+import com.google.gson.reflect.TypeToken
 import com.influxdb.client.InfluxDBClient
 import com.influxdb.client.domain.DeletePredicateRequest
 import com.influxdb.client.domain.WritePrecision
@@ -118,18 +122,23 @@ val Date.offset get() = toInstant().atOffset(ZoneOffset.UTC)
 fun Long.ensureMs() = if (this < 99999999999) this * 1000 else this
 
 // GSON
-fun makeGson(): Gson
-{
-    val sd = JsonSerializer<Date> { src, _, _ -> if (src == null) null else JsonPrimitive(src.time / 1000) }
-    val dd = JsonDeserializer<Date> { json, _, _ -> if (json == null) null else Date(json.asLong.ensureMs()) }
-    val si = JsonSerializer<Instant> { src, _, _ -> if (src == null) null else JsonPrimitive(src.epochSecond) }
-    val di = JsonDeserializer<Instant> { json, _, _ -> if (json == null) null else Date(json.asLong.ensureMs()).toInstant() }
+object GsonExtensions {
+    fun makeGson(): Gson
+    {
+        val sd = JsonSerializer<Date> { src, _, _ -> if (src == null) null else JsonPrimitive(src.time / 1000) }
+        val dd = JsonDeserializer<Date> { json, _, _ -> if (json == null) null else Date(json.asLong.ensureMs()) }
+        val si = JsonSerializer<Instant> { src, _, _ -> if (src == null) null else JsonPrimitive(src.epochSecond) }
+        val di = JsonDeserializer<Instant> { json, _, _ -> if (json == null) null else Date(json.asLong.ensureMs()).toInstant() }
 
-    return GsonBuilder()
-        .registerTypeAdapter(Date::class.java, sd)
-        .registerTypeAdapter(Date::class.java, dd)
-        .registerTypeAdapter(Instant::class.java, si)
-        .registerTypeAdapter(Instant::class.java, di)
-        .create()
+        return GsonBuilder()
+            .registerTypeAdapter(Date::class.java, sd)
+            .registerTypeAdapter(Date::class.java, dd)
+            .registerTypeAdapter(Instant::class.java, si)
+            .registerTypeAdapter(Instant::class.java, di)
+            .create()
+    }
+    val GSON = makeGson()
+    inline fun <reified T> Gson.parse(json: String?) = fromJson<T>(json, object : TypeToken<T>() {}.type)
+    inline fun <reified T> String.parseJson() = GSON.parse<T>(this)
 }
-val GSON = makeGson();
+}
