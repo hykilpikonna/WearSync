@@ -14,6 +14,7 @@ import androidx.activity.result.contract.ActivityResultContracts
 import androidx.core.content.edit
 import androidx.preference.PreferenceManager
 import com.google.android.material.snackbar.Snackbar
+import com.google.gson.*
 import com.influxdb.client.InfluxDBClient
 import com.influxdb.client.domain.DeletePredicateRequest
 import com.influxdb.client.domain.WritePrecision
@@ -23,6 +24,7 @@ import com.welie.blessed.BluetoothPeripheral
 import kotlinx.coroutines.*
 import kotlinx.coroutines.flow.Flow
 import java.lang.reflect.Modifier
+import java.time.Instant
 import java.time.ZoneOffset
 import java.util.*
 import kotlin.coroutines.CoroutineContext
@@ -113,3 +115,21 @@ fun Any.reflectToString(): String {
 }
 
 val Date.offset get() = toInstant().atOffset(ZoneOffset.UTC)
+fun Long.ensureMs() = if (this < 99999999999) this * 1000 else this
+
+// GSON
+fun makeGson(): Gson
+{
+    val sd = JsonSerializer<Date> { src, _, _ -> if (src == null) null else JsonPrimitive(src.time / 1000) }
+    val dd = JsonDeserializer<Date> { json, _, _ -> if (json == null) null else Date(json.asLong.ensureMs()) }
+    val si = JsonSerializer<Instant> { src, _, _ -> if (src == null) null else JsonPrimitive(src.epochSecond) }
+    val di = JsonDeserializer<Instant> { json, _, _ -> if (json == null) null else Date(json.asLong.ensureMs()).toInstant() }
+
+    return GsonBuilder()
+        .registerTypeAdapter(Date::class.java, sd)
+        .registerTypeAdapter(Date::class.java, dd)
+        .registerTypeAdapter(Instant::class.java, si)
+        .registerTypeAdapter(Instant::class.java, di)
+        .create()
+}
+val GSON = makeGson();

@@ -1,6 +1,5 @@
 package org.hydev.wearsync
 
-import com.google.gson.*
 import com.influxdb.client.InfluxDBClientFactory
 import com.influxdb.client.InfluxDBClientOptions
 import com.influxdb.client.kotlin.InfluxDBClientKotlinFactory
@@ -17,21 +16,6 @@ import org.jetbrains.exposed.sql.transactions.transaction
 import java.sql.Connection
 import java.time.Instant
 import java.util.*
-
-fun Long.ensureMs() = if (this < 99999999999) this * 1000 else this
-fun makeGson(): Gson {
-    val sd = JsonSerializer<Date> { src, _, _ -> if (src == null) null else JsonPrimitive(src.time / 1000) }
-    val dd = JsonDeserializer<Date> { json, _, _ -> if (json == null) null else Date(json.asLong.ensureMs()) }
-    val si = JsonSerializer<Instant> { src, _, _ -> if (src == null) null else JsonPrimitive(src.epochSecond) }
-    val di = JsonDeserializer<Instant> { json, _, _ -> if (json == null) null else Date(json.asLong.ensureMs()).toInstant() }
-
-    return GsonBuilder()
-        .registerTypeAdapter(Date::class.java, sd)
-        .registerTypeAdapter(Date::class.java, dd)
-        .registerTypeAdapter(Instant::class.java, si)
-        .registerTypeAdapter(Instant::class.java, di)
-        .create()
-}
 
 
 suspend fun main(args: Array<String>)
