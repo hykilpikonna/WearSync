@@ -20,6 +20,7 @@ import com.google.android.material.snackbar.Snackbar
 import com.google.gson.*
 import com.google.gson.reflect.TypeToken
 import com.influxdb.client.InfluxDBClient
+import com.influxdb.client.InfluxDBClientFactory
 import com.influxdb.client.domain.DeletePredicateRequest
 import com.influxdb.client.domain.WritePrecision
 import com.influxdb.client.kotlin.InfluxDBClientKotlin
@@ -59,8 +60,24 @@ interface Prefs {
     var infBucket: String?
     var infToken: String?
 
-    fun createInflux(): InfluxDBClientKotlin
+    fun createInflux(): Influx
     suspend fun influxPing()
+}
+
+data class Influx(
+    val kt: InfluxDBClientKotlin,
+    val java: InfluxDBClient,
+
+    val prec: WritePrecision = WritePrecision.MS
+) {
+    val writer get() = kt.getWriteKotlinApi()
+
+    suspend operator fun <T> plusAssign(m: T) = writer.writeMeasurement(m, prec)
+    suspend operator fun <T> plusAssign(m: Iterable<T>) = writer.writeMeasurements(m, prec)
+    suspend operator fun <T> plusAssign(m: Flow<T>) = writer.writeMeasurements(m, prec)
+
+    fun dropAll(bucket: String, org: String) = java.deleteApi.delete(DeletePredicateRequest()
+        .start(Date(0).offset).stop(Date(5999999999999).offset), bucket, org)
 }
 
 val Context.pref get() = PreferenceManager.getDefaultSharedPreferences(this)
@@ -78,11 +95,13 @@ val Context.prefs get() = object : Prefs {
     override var infBucket by prop
     override var infToken by prop
 
-    override fun createInflux() = InfluxDBClientKotlinFactory
-        .create(infUrl ?: "", (infToken ?: "").toCharArray(), infOrg ?: "", infBucket ?: "")
+    override fun createInflux() = Influx(
+        InfluxDBClientKotlinFactory.create(infUrl!!, infToken!!.toCharArray(), infOrg!!, infBucket!!),
+        InfluxDBClientFactory.create(infUrl!!, infToken!!.toCharArray(), infOrg!!, infBucket!!),
+    )
 
     override suspend fun influxPing() = with(createInflux()) {
-        getWriteKotlinApi().writeRecord("ping host=\"${Build.MODEL}\"", WritePrecision.MS)
+        writer.writeRecord("ping host=\"${Build.MODEL}\"", WritePrecision.MS)
     }
 }
 
@@ -97,13 +116,6 @@ inline fun <reified T> Context.act()
 }
 fun ComponentActivity.actCallback(fn: ActivityResultCallback<ActivityResult>) =
     registerForActivityResult(ActivityResultContracts.StartActivityForResult(), fn)
-
-suspend infix fun <T> InfluxDBClientKotlin.add(meas: T) = getWriteKotlinApi().writeMeasurement(meas, WritePrecision.MS)
-suspend infix fun <T> InfluxDBClientKotlin.add(meas: Iterable<T>) = getWriteKotlinApi().writeMeasurements(meas, WritePrecision.MS)
-suspend infix fun <T> InfluxDBClientKotlin.add(meas: Flow<T>) = getWriteKotlinApi().writeMeasurements(meas, WritePrecision.MS)
-
-fun InfluxDBClient.dropAll(bucket: String, org: String) =
-    deleteApi.delete(DeletePredicateRequest().start(Date(0).offset).stop(Date(5999999999999).offset), bucket, org)
 
 fun Any.reflectToString(): String {
     val s = ArrayList<String>()
