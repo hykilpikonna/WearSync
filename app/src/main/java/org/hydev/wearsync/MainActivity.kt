@@ -13,7 +13,6 @@ import androidx.activity.result.contract.ActivityResultContracts
 import androidx.appcompat.app.AppCompatActivity
 import androidx.recyclerview.widget.LinearLayoutManager
 import androidx.recyclerview.widget.RecyclerView
-import com.influxdb.client.kotlin.InfluxDBClientKotlin
 import kotlinx.coroutines.*
 import org.hydev.wearsync.ActivityPermissions.Companion.hasPermissions
 import org.hydev.wearsync.databinding.ActivityMainBinding
@@ -24,7 +23,6 @@ class MainActivity : AppCompatActivity()
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
 
     lateinit var binding: ActivityMainBinding
-    lateinit var influx: InfluxDBClientKotlin
 
     var log = true
 
@@ -76,9 +74,6 @@ class MainActivity : AppCompatActivity()
     val settingsCallback = actCallback { afterSettings() }
     fun afterSettings() {
         addRecord("InfluxDB settings checked")
-
-        // Create client
-        influx = prefs.createInflux()
 
         // Scan for devices
         if (prefs.chosenDevice == null) pairCallback.launch(intent<ActivityScan>())

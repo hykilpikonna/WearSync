@@ -8,7 +8,6 @@ import android.content.Intent
 import android.content.IntentFilter
 import android.os.BatteryManager
 import androidx.core.app.NotificationCompat
-import com.influxdb.client.kotlin.InfluxDBClientKotlin
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
@@ -25,7 +24,7 @@ import java.util.concurrent.atomic.AtomicReference
 
 class MyService : Service()
 {
-    private lateinit var influx: InfluxDBClientKotlin
+    private lateinit var influx: Influx
     private val bm by lazy { getSysServ<BatteryManager>() }
 
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
@@ -62,7 +61,7 @@ class MyService : Service()
         runCatching {
             val clas = it.javaClass.simpleName
             Timber.d("+$clas")
-            influx add it
+            influx += it
 
             notif(text = "Recorded ${count.addAndGet(1)} events!\n+$clas")
         }.orTrace()
