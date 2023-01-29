@@ -152,7 +152,7 @@ object Database {
 
     class CursorIterator(val c: Cursor) : Iterator<Cursor>
     {
-        override fun hasNext() = !c.isAfterLast
+        override fun hasNext() = !c.isLast && !c.isAfterLast
         override fun next() = c.apply { moveToNext() }
     }
 
