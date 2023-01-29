@@ -7,12 +7,21 @@ android {
     namespace 'org.hydev.wearsync'
     compileSdk 33
 
+    sourceSets {
+        main {
+            jniLibs.srcDirs = ['libs']
+        }
+    }
+
     defaultConfig {
         applicationId "org.hydev.wearsync"
         minSdk 26
         targetSdk 33
         versionCode 1
         versionName "1.0"
+        ndk {
+            abiFilters "aarch64", "armeabi", "arm64", "x86", "x86_64"
+        }
 
         testInstrumentationRunner "androidx.test.runner.AndroidJUnitRunner"
     }
@@ -23,13 +32,16 @@ android {
             proguardFiles getDefaultProguardFile('proguard-android-optimize.txt'), 'proguard-rules.pro'
         }
     }
+
     compileOptions {
         sourceCompatibility JavaVersion.VERSION_1_8
         targetCompatibility JavaVersion.VERSION_1_8
     }
+
     kotlinOptions {
         jvmTarget = '1.8'
     }
+
     buildFeatures {
         viewBinding true
     }
@@ -58,6 +70,13 @@ dependencies {
     implementation "org.jetbrains.exposed:exposed-core:0.40.1"
     implementation "org.jetbrains.exposed:exposed-dao:0.40.1"
     implementation "org.jetbrains.exposed:exposed-jdbc:0.40.1"
+
+    // !IMPORTANT! Make sure to update native so when updating sqlite-jdbc
+    // Copy from sqlite-jdbc-3.40.0.0.jar!/org/sqlite/native/Linux-Android to app/libs
+    // ln -s arm armeabi
+    // ln -s arm armeabi-v7a
+    // ln -s aarch64 arm64
+    // ln -s aarch64 arm64-v8a
     implementation 'org.xerial:sqlite-jdbc:3.40.0.0'
 
     // Root library
