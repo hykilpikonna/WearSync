@@ -73,7 +73,7 @@ fun readMiFitness(path: String): MiFitness
 {
     val db = SQLiteDatabase.openDatabase(path, null, 0)
     val days = db.rawQuery("SELECT * FROM sleep_segment", null).use {
-        return@use it.seq.mapNotNull { c ->
+        it.seq.mapNotNull { c ->
             val json = c str "value"
             when (c str "key")
             {
@@ -81,8 +81,8 @@ fun readMiFitness(path: String): MiFitness
                 "watch_daytime_sleep" -> json?.parseJson<SleepDaytime>()
                 else -> null
             }
-        }
-    }.toList()
+        }.toList()
+    }
 
     if (days.isEmpty()) return MiFitness(emptyList(), emptyList())
 
