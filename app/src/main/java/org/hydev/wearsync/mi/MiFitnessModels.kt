@@ -16,14 +16,6 @@ import org.jetbrains.exposed.sql.*
 import java.time.Instant
 import java.util.*
 
-object SleepSegment : Table("sleep_segment") {
-    val key = text("key")
-    val sid = text("sid")
-    val time = integer("time")
-    val isComplete = integer("isComplete")
-    val value = text("value")
-}
-
 @Measurement(name = "mi-sleep-day")
 class SleepNight : SleepDaytime()
 {
