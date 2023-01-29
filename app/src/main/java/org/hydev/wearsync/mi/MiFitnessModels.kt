@@ -4,16 +4,15 @@ package org.hydev.wearsync.mi
 
 import android.annotation.SuppressLint
 import android.content.Context
+import android.database.sqlite.SQLiteDatabase
 import com.influxdb.annotations.Column
 import com.influxdb.annotations.Measurement
 import com.topjohnwu.superuser.Shell
-import org.hydev.wearsync.GSON
+import org.hydev.wearsync.Database.seq
+import org.hydev.wearsync.Database.str
+import org.hydev.wearsync.GsonExtensions.parseJson
 import org.hydev.wearsync.reflectToString
-import org.jetbrains.exposed.exceptions.ExposedSQLException
 import org.jetbrains.exposed.sql.*
-import org.jetbrains.exposed.sql.transactions.TransactionManager
-import org.jetbrains.exposed.sql.transactions.transaction
-import java.sql.Connection
 import java.time.Instant
 import java.util.*
 
@@ -68,35 +67,23 @@ data class MiFitness(
     val states: List<SleepState>,
 )
 
+val MI_EMPTY = MiFitness(emptyList(), emptyList())
+
 fun readMiFitness(path: String): MiFitness
 {
-//    Database.registerJdbcDriver("jdbc:sqldroid", "org.sqldroid.SQLDroidDriver", SQLiteDialect.dialectName)
-    Database.connect("jdbc:sqlite:${path}", "org.sqlite.JDBC")
-    TransactionManager.manager.defaultIsolationLevel = Connection.TRANSACTION_SERIALIZABLE
-
-    val days = try {
-        transaction {
-            addLogger(StdOutSqlLogger)
-
-            return@transaction SleepSegment.selectAll().mapNotNull {
-                val json = it[SleepSegment.value]
-                when (it[SleepSegment.key])
-                {
-                    "watch_night_sleep" -> GSON.fromJson(json, SleepNight::class.java)
-                    "watch_daytime_sleep" -> GSON.fromJson(json, SleepDaytime::class.java)
-                    else -> null
-                }
+    val db = SQLiteDatabase.openDatabase(path, null, 0)
+    val days = db.rawQuery("SELECT * FROM sleep_segment", null).use {
+        return@use it.seq.mapNotNull { c ->
+            val json = c str "value"
+            when (c str "key")
+            {
+                "watch_night_sleep" -> json?.parseJson<SleepNight>()
+                "watch_daytime_sleep" -> json?.parseJson<SleepDaytime>()
+                else -> null
             }
         }
-    }
-    catch (e: ExposedSQLException)
-    {
-        if (e.message?.lowercase()?.contains("no such table") == true) {
-            println("Fitness database not found in $path")
-            return MiFitness(emptyList(), emptyList())
-        }
-        else throw e
-    }
+    }.toList()
+
     if (days.isEmpty()) return MiFitness(emptyList(), emptyList())
 
     // Calculate average fall asleep time
