@@ -12,7 +12,6 @@ import org.hydev.wearsync.Database.seq
 import org.hydev.wearsync.Database.str
 import org.hydev.wearsync.GsonExtensions.parseJson
 import org.hydev.wearsync.reflectToString
-import org.jetbrains.exposed.sql.*
 import java.time.Instant
 import java.util.*
 
