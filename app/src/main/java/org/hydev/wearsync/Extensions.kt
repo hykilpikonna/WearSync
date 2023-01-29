@@ -65,18 +65,18 @@ interface Prefs {
 
 val Context.pref get() = PreferenceManager.getDefaultSharedPreferences(this)
 val Context.prefs get() = object : Prefs {
-    inner class PrefDelegate {
+    val prop = object {
         operator fun getValue(thisRef: Any?, property: KProperty<*>) = pref.getString(property.name, null)
         operator fun setValue(thisRef: Any?, property: KProperty<*>, value: String?) {
             pref.edit { putString(property.name, value) }
         }
     }
 
-    override var chosenDevice by PrefDelegate()
-    override var infUrl by PrefDelegate()
-    override var infOrg by PrefDelegate()
-    override var infBucket by PrefDelegate()
-    override var infToken by PrefDelegate()
+    override var chosenDevice by prop
+    override var infUrl by prop
+    override var infOrg by prop
+    override var infBucket by prop
+    override var infToken by prop
 
     override fun createInflux() = InfluxDBClientKotlinFactory
         .create(infUrl ?: "", (infToken ?: "").toCharArray(), infOrg ?: "", infBucket ?: "")
