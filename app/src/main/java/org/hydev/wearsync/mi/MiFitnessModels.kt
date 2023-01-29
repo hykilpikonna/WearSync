@@ -2,10 +2,14 @@
 
 package org.hydev.wearsync.mi
 
+import android.annotation.SuppressLint
+import android.content.Context
 import com.influxdb.annotations.Column
 import com.influxdb.annotations.Measurement
+import com.topjohnwu.superuser.Shell
 import org.hydev.wearsync.GSON
 import org.hydev.wearsync.reflectToString
+import org.jetbrains.exposed.exceptions.ExposedSQLException
 import org.jetbrains.exposed.sql.*
 import org.jetbrains.exposed.sql.transactions.TransactionManager
 import org.jetbrains.exposed.sql.transactions.transaction
@@ -59,27 +63,44 @@ data class SleepState(
     var state: Int,
 )
 
-fun readMiDatabase(): Pair<List<SleepDaytime>, List<SleepState>>
+data class MiFitness(
+    val days: List<SleepDaytime>,
+    val states: List<SleepState>,
+)
+
+fun readMiFitness(path: String): MiFitness
 {
-    val PATH = "/data/data/com.mi.health/databases/1804898679/cn/fitness_data"
-    Database.connect("jdbc:sqlite:${PATH}", "org.sqlite.JDBC")
+//    Database.registerJdbcDriver("jdbc:sqldroid", "org.sqldroid.SQLDroidDriver", SQLiteDialect.dialectName)
+    Database.connect("jdbc:sqlite:${path}", "org.sqlite.JDBC")
     TransactionManager.manager.defaultIsolationLevel = Connection.TRANSACTION_SERIALIZABLE
 
-    val days = transaction {
-        addLogger(StdOutSqlLogger)
+    val days = try {
+        transaction {
+            addLogger(StdOutSqlLogger)
 
-        return@transaction SleepSegment.selectAll().mapNotNull {
-            val json = it[SleepSegment.value]
-            when (it[SleepSegment.key])
-            {
-                "watch_night_sleep" -> GSON.fromJson(json, SleepNight::class.java)
-                "watch_daytime_sleep" -> GSON.fromJson(json, SleepDaytime::class.java)
-                else -> null
+            return@transaction SleepSegment.selectAll().mapNotNull {
+                val json = it[SleepSegment.value]
+                when (it[SleepSegment.key])
+                {
+                    "watch_night_sleep" -> GSON.fromJson(json, SleepNight::class.java)
+                    "watch_daytime_sleep" -> GSON.fromJson(json, SleepDaytime::class.java)
+                    else -> null
+                }
             }
         }
     }
+    catch (e: ExposedSQLException)
+    {
+        if (e.message?.lowercase()?.contains("no such table") == true) {
+            println("Fitness database not found in $path")
+            return MiFitness(emptyList(), emptyList())
+        }
+        else throw e
+    }
+    if (days.isEmpty()) return MiFitness(emptyList(), emptyList())
 
-    println(days.filterIsInstance<SleepNight>().take(45)
+    // Calculate average fall asleep time
+    println(days.asSequence().filterIsInstance<SleepNight>().take(45)
         .map { it.bedtime.hours }.map { if (it < 12) it + 24 else it }.average() - 24)
 
     val rawStates = days.flatMap { it.items }.sortedBy { it.start_time }
@@ -103,5 +124,29 @@ fun readMiDatabase(): Pair<List<SleepDaytime>, List<SleepState>>
     // Remove duplicates
     states = states.filterIndexed { i, si -> i == 0 || si.state != states[i - 1].state }.toMutableList()
 
-    return days to states.toList()
+    return MiFitness(days, states.toList())
+}
+
+@SuppressLint("SdCardPath")
+const val MI_DB_PATH = "/data/data/com.mi.health/databases"
+
+fun Context.readMiFitness(): MiFitness
+{
+    val days = ArrayList<SleepDaytime>()
+    val states = ArrayList<SleepState>()
+
+    // Find fitness database paths through the root shell
+    Shell.cmd("find $MI_DB_PATH -name fitness_data").exec().out.forEach {
+        println("Reading database $it")
+
+        // Copy file to a readable path
+        val path = filesDir.path + "/tmp.db"
+        Shell.cmd("cp '$it' $path").exec()
+
+        val (d, s) = readMiFitness(path)
+        days += d
+        states += s
+    }
+
+    return MiFitness(days, states)
 }
