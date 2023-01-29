@@ -60,6 +60,10 @@ dependencies {
     implementation "org.jetbrains.exposed:exposed-jdbc:0.40.1"
     implementation 'org.xerial:sqlite-jdbc:3.40.0.0'
 
+    // Root library
+    implementation "com.github.topjohnwu.libsu:core:5.0.4"
+    implementation "com.github.topjohnwu.libsu:service:5.0.4"
+
     testImplementation 'junit:junit:4.13.2'
     androidTestImplementation 'androidx.test.ext:junit:1.1.5'
     androidTestImplementation 'androidx.test.espresso:espresso-core:3.5.1'

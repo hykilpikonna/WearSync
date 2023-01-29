@@ -4,7 +4,6 @@ package org.hydev.wearsync.mi
 
 import com.influxdb.annotations.Column
 import com.influxdb.annotations.Measurement
-import com.topjohnwu.superuser.Shell
 import org.hydev.wearsync.GSON
 import org.hydev.wearsync.reflectToString
 import org.jetbrains.exposed.sql.*
