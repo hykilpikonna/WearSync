@@ -67,6 +67,7 @@ interface Prefs {
 data class Influx(
     val kt: InfluxDBClientKotlin,
     val java: InfluxDBClient,
+    val prefs: Prefs,
 
     val prec: WritePrecision = WritePrecision.MS
 ) {
@@ -98,6 +99,7 @@ val Context.prefs get() = object : Prefs {
     override fun createInflux() = Influx(
         InfluxDBClientKotlinFactory.create(infUrl!!, infToken!!.toCharArray(), infOrg!!, infBucket!!),
         InfluxDBClientFactory.create(infUrl!!, infToken!!.toCharArray(), infOrg!!, infBucket!!),
+        this
     )
 
     override suspend fun influxPing() = with(createInflux()) {
