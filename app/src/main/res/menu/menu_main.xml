@@ -17,4 +17,9 @@
         android:orderInCategory="100"
         android:title="@string/action_stop_logging"
         app:showAsAction="never" />
+    <item
+        android:id="@+id/action_sync_sleep"
+        android:orderInCategory="100"
+        android:title="@string/action_sync_sleep"
+        app:showAsAction="never" />
 </menu>

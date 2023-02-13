@@ -3,6 +3,7 @@
     <string name="action_settings">Settings</string>
     <string name="action_scan">Scan for Devices</string>
     <string name="action_stop_logging">Stop Logging on Display</string>
+    <string name="action_sync_sleep">Sync Sleep Data</string>
 
     <!-- Preference Titles -->
     <string name="pref_influx_head">InfluxDB Settings</string>
