@@ -24,11 +24,12 @@ import java.util.concurrent.atomic.AtomicReference
 
 class MyService : Service()
 {
-    private lateinit var influx: Influx
-    private val bm by lazy { getSysServ<BatteryManager>() }
+    lateinit var influx: Influx
 
-    private val scope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
-    private val count = AtomicLong()
+    val bm by lazy { getSysServ<BatteryManager>() }
+
+    val scope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
+    val count = AtomicLong()
 
     override fun onBind(intent: Intent?) = null
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int
