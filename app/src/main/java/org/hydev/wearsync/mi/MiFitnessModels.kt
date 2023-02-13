@@ -11,6 +11,8 @@ import com.topjohnwu.superuser.Shell
 import org.hydev.wearsync.Database.seq
 import org.hydev.wearsync.Database.str
 import org.hydev.wearsync.GsonExtensions.parseJson
+import org.hydev.wearsync.Influx
+import org.hydev.wearsync.offset
 import org.hydev.wearsync.reflectToString
 import java.time.Instant
 import java.util.*
@@ -128,4 +130,20 @@ fun Context.readMiFitness(): MiFitness
     }
 
     return MiFitness(days, states)
+}
+
+suspend fun Context.syncSleep(influx: Influx)
+{
+    val (days, states) = readMiFitness()
+
+    println(days.joinToString("\n"))
+
+    listOf("mi-sleep-day", "mi-sleep-state").forEach {
+        influx.java.deleteApi.delete(Date(0).offset, Date(5999999999999).offset,
+            "_measurement=\"$it\"",
+            influx.prefs.infBucket!!, influx.prefs.infOrg!!)
+    }
+
+    influx += days
+    influx += states
 }
