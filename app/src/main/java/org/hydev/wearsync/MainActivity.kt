@@ -16,6 +16,7 @@ import androidx.recyclerview.widget.RecyclerView
 import kotlinx.coroutines.*
 import org.hydev.wearsync.ActivityPermissions.Companion.hasPermissions
 import org.hydev.wearsync.databinding.ActivityMainBinding
+import org.hydev.wearsync.mi.syncSleep
 import java.util.*
 
 class MainActivity : AppCompatActivity()
@@ -118,6 +119,12 @@ class MainActivity : AppCompatActivity()
             }
             R.id.action_stop_logging -> {
                 log = false
+                true
+            }
+            R.id.action_sync_sleep -> {
+                scope.launch {
+                    syncSleep(prefs.createInflux())
+                }
                 true
             }
             else -> super.onOptionsItemSelected(item)
